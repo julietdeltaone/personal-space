@@ -20,12 +20,14 @@ const MAX_ROWS_RETURNED = 2000;
 const DEDUPE_WINDOW = 60;
 
 function setup() {
+  ScriptApp.requireAllScopes(ScriptApp.AuthMode.FULL);
   const props = PropertiesService.getScriptProperties();
   if (!props.getProperty('SECRET')) props.setProperty('SECRET', Utilities.getUuid() + Utilities.getUuid());
   getSheet_();
 }
 
 function doGet(e) {
+  ScriptApp.requireAllScopes(ScriptApp.AuthMode.FULL);
   const p = (e && e.parameter) || {};
   if (!p.action && !p.key) return dashboardPage_();
   try {
@@ -122,6 +124,7 @@ function dashboardPage_() {
     return HtmlService.createHtmlOutput(source.getContentText()).setTitle('Personal space')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1');
   } catch (err) {
+    console.error(String(err));
     return HtmlService.createHtmlOutput('<p>Open your private dashboard deployment and sign in as the Sheet owner.</p>');
   }
 }
