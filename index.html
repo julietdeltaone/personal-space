@@ -247,15 +247,15 @@ dialog.open .sheet { transform: none; }
 .codebox input::placeholder { color: var(--faint); letter-spacing: .04em; font-size: 15px; font-family: var(--font); }
 .codebox input:focus { border-color: hsl(var(--glow-h) 80% 60%); background: var(--panel); }
 .mgroup { margin: 20px 0 4px; font-size: 13px; font-weight: 550; color: var(--muted); }
-.mrow { padding: 12px 0 16px; }
+.mrow { padding: 8px 0 10px; }
 .mtop { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 9px; }
 .mname { font-weight: 550; }
 .mval { font-size: 20px; font-weight: 620; font-variant-numeric: tabular-nums; display: inline-block; transition: color .3s; }
 .meter { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; height: 40px; touch-action: pan-y; cursor: pointer; outline: none; user-select: none; -webkit-user-select: none; --c: var(--faint); }
-.meter i { position: relative; border-radius: 8px; background: var(--track); transition: background-color .25s, box-shadow .3s; }
-.meter i.on { background: var(--c); box-shadow: 0 0 18px -5px var(--c); }
+.meter i { display:grid;place-items:center;font-style:normal;font-size:12px;color:var(--text);position: relative; border-radius: 8px; background: var(--track); transition: background-color .25s, box-shadow .3s; }
+.meter i.on {color:var(--bg);background: var(--c); box-shadow: 0 0 18px -5px var(--c); }
 .meter i.last::after { content: ""; position: absolute; left: 50%; bottom: -9px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--muted); }
-.mhint { margin-top: 12px; color: var(--muted); font-size: 13px; min-height: 1.4em; }
+.mhint { margin-top: 6px; color: var(--muted); font-size: 13px; min-height: 1.4em; }
 .sheet-foot { position: sticky; bottom: 0; display: flex; gap: 10px; padding: 16px 22px calc(16px + env(safe-area-inset-bottom)); background: linear-gradient(to top, var(--sheet-bg) 72%, transparent); }
 .btn { all: unset; box-sizing: border-box; cursor: pointer; text-align: center; padding: 14px 18px; border-radius: 16px; font-weight: 560; font-size: 15px; border: 1px solid var(--line-2); transition: background .3s, opacity .3s, transform .3s var(--ease); }
 .btn:hover { background: var(--panel-hi); }
@@ -285,21 +285,12 @@ dialog.open .sheet { transform: none; }
 .metric-group {border:1px solid var(--line);border-radius:18px;padding:14px;margin:12px 0;background:var(--panel)}
 .metric-group summary {cursor:pointer;font-weight:650;min-height:44px;display:flex;align-items:center;justify-content:space-between}
 .metric-group summary small {font-weight:400;color:var(--muted)}
-.quick-rates {display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:10px 0}
-.quick-rates button {min-height:44px;border:1px solid var(--line-2);border-radius:10px;background:var(--panel);cursor:pointer;font-size:13px}
-.quick-rates button[aria-pressed=true] {background:var(--panel-hi);border-color:#45e0b0}
 .na-control {display:flex;gap:10px;align-items:center;min-height:44px;color:var(--muted)}
-.na-control input,.bible-fields input[type=checkbox] {width:22px;height:22px;accent-color:#45e0b0}
-.bible-fields {display:grid;gap:14px;padding:14px 0}
-.bible-fields label {display:grid;gap:8px}
-.bible-fields input[type=text],.bible-fields textarea {width:100%;padding:13px;border:1px solid var(--line-2);border-radius:12px;background:var(--bg);color:var(--text);font:inherit;font-size:16px}
-.bible-fields textarea {min-height:110px;resize:vertical}
-.bible-fields .readcheck {display:flex;align-items:center;gap:10px}
 .seg-g text {display:none}
 .seg.series {flex-wrap:wrap;overflow:visible;max-width:100%}
 .codebox {display:none}
-#bibleHistory {padding:16px;border:1px solid var(--line);border-radius:16px;margin:16px 0;white-space:pre-wrap;color:var(--muted)}
 @media(min-width:1000px){.wrap {width:100%;max-width:none;padding-left:32px;padding-right:32px}.sheet {width:96vw;max-width:none;max-height:94dvh}#meters {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}.metric-group{margin:0}.sheet-pad{padding:24px}.sheet-foot{padding:18px 24px}}
+#inputSync{align-self:center;font-size:13px;color:var(--muted);flex:1}.sheet-foot .btn.primary{flex:0;padding:12px 20px}
 @media(max-width:600px){.sheet{width:100vw;max-height:96dvh}.sheet-pad{padding:16px}.metric-group{padding:12px}.meter{min-height:44px}.sheet-foot{position:sticky;bottom:0;background:var(--sheet-bg);padding-bottom:calc(16px + env(safe-area-inset-bottom))}}
 
 </style>
@@ -368,7 +359,7 @@ dialog.open .sheet { transform: none; }
     <p class="stat" id="statLine"></p>
     <p class="legend" id="legend"></p>
   </section>
-  <div id="bibleHistory" hidden></div><p class="sr" id="srSummary" aria-live="polite"></p>
+  <p class="sr" id="srSummary" aria-live="polite"></p>
 </main>
 
 <button class="fab" id="fab" aria-label="Log update">
@@ -386,12 +377,12 @@ dialog.open .sheet { transform: none; }
       <label class="codebox"><span>Quick code</span>
         <input id="codeInput" inputmode="numeric" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Type digits or tap the bars below">
       </label>
-      <p class="legend">Tap a quick rating: 1 = needs work, 5 = halfway, 8 = nearly ready, 10 = complete. Expand one group at a time. Skip tomorrow’s items when not needed.</p><div id="meters"></div>
+      <p class="legend">Tap a number to score. Tap the selected number again to clear. Changes save automatically; the indicator confirms when they reach the Sheet.</p><div id="meters"></div>
     </div>
     <div class="sheet-foot">
       <button class="btn" id="allTen" type="button">All 10</button>
-      <button class="btn" id="resetLast" type="button">Reset</button>
-      <button class="btn primary" id="logBtn" type="button">Log update</button>
+      <button class="btn" id="resetLast" type="button">Restore previous</button>
+      <span id="inputSync" role="status" aria-live="polite"></span><button class="btn primary" id="logBtn" type="button">Done</button>
     </div>
   </div>
 </dialog>
@@ -475,6 +466,8 @@ const dayKey = ms => { const d = new Date(ms); return d.getFullYear() + '-' + (d
 const fmt = n => n.toFixed(1);
 
 /* ---------- state ---------- */
+const managed = typeof google !== 'undefined' && !!google.script?.run;
+const connected = () => managed || !!(cfg.url && cfg.key);
 let cfg = load(LS.cfg, { url: '', key: '' });
 let confirmed = load(LS.confirmed, []);
 let pending = load(LS.pending, []);
@@ -498,8 +491,11 @@ function parseEntry(raw) {
   code = code.padStart(len, '0');
   let x = raw.x || {}; if (typeof x === "string") { try { x = JSON.parse(x); } catch (_) { x = {}; } }
   if (Number(raw.s) === 28 && code.length >= 28) x = {...x, na:[...OPTIONAL].filter((id,i)=>code[22+i]==='1')};
-  const vals = SLOTS.map((slot, i) => (x.na || []).includes(slot.id) ? null : i < code.length ? Number(code[i]) + 1 : null);
-  return { t: raw.t, ms, code, vals, x };
+  const partial=Number(raw.s)===31 && code.length===31;
+  const rated=partial?Number(code.slice(22,29)):0;
+  if(partial) { const bits=Number(code.slice(29,31));x={...x,na:[...OPTIONAL].filter((id,i)=>(bits & (2**i))!==0)}; }
+  const vals = SLOTS.map((slot, i) => (x.na || []).includes(slot.id) || (partial && !(rated & (2**i))) ? null : i < Math.min(code.length,22) ? Number(code[i]) + 1 : null);
+  return { t: raw.t, ms, code, vals, x, partial };
 }
 function rebuild() {
   const map = new Map();
@@ -511,7 +507,7 @@ function slotState(i) {
   let cur = null, prev = null;
   for (let k = entries.length - 1; k >= 0; k--) {
     const v = entries[k].vals[i];
-    if (v == null) { if(cur == null && (entries[k].x.na || []).includes(SLOTS[i].id)) return {cur:null,prev:null,delta:null,na:true}; continue; }
+    if (v == null) { if(cur == null && entries[k].partial) return {cur:null,prev:null,delta:null,na:(entries[k].x.na||[]).includes(SLOTS[i].id)}; if(cur == null && (entries[k].x.na || []).includes(SLOTS[i].id)) return {cur:null,prev:null,delta:null,na:true}; continue; }
     if (cur == null) cur = v; else { prev = v; break; }
   }
   return { cur, prev, delta: cur != null && prev != null ? cur - prev : null };
@@ -868,30 +864,37 @@ function buildMeters() {
       const row = document.createElement('div');
       row.className = 'mrow'; row.dataset.id = s.id;
       row.innerHTML = `<div class="mtop"><span class="mname">${s.label}</span><span class="mval">–</span></div>
-        <div class="meter" role="slider" tabindex="0" aria-label="${s.label}" aria-valuemin="1" aria-valuemax="10">${'<i></i>'.repeat(10)}</div>
+        <div class="meter" role="slider" tabindex="0" aria-label="${s.label}" aria-valuemin="1" aria-valuemax="10">${Array.from({length:10},(_,n)=>'<i>'+ (n+1) +'</i>').join('')}</div>
         <p class="mhint"></p>`;
       groupHost.append(row);
       const m = { row, el: row.querySelector('.meter'), val: row.querySelector('.mval'), hint: row.querySelector('.mhint'), cells: [...row.querySelectorAll('.meter i')] };
       meters[i] = m;
-      const quick = document.createElement('div'); quick.className = 'quick-rates';
-      [[1,'Needs work'],[3,'Started'],[5,'Halfway'],[8,'Nearly ready'],[10,'Done']].forEach(([v,label])=>{const b=document.createElement('button');b.type='button';b.textContent=v+' · '+label;b.setAttribute('aria-pressed','false');b.addEventListener('click',()=>setVal(i,v));quick.append(b);});row.append(quick);
-      if (OPTIONAL.has(s.id)) { const label=document.createElement('label'); label.className='na-control'; const cb=document.createElement('input');cb.type='checkbox';cb.dataset.na=s.id;label.append(cb,document.createTextNode('Not needed tomorrow'));cb.addEventListener('change',()=>{if(cb.checked){draftNA.add(s.id);setVal(i,10)}else{draftNA.delete(s.id);draft[i]=null;paintMeter(i);updateLogBtn()} paintMeter(i)});row.append(label); }
+      if (OPTIONAL.has(s.id)) { const label=document.createElement('label'); label.className='na-control'; const cb=document.createElement('input');cb.type='checkbox';cb.dataset.na=s.id;label.append(cb,document.createTextNode('Not needed tomorrow'));cb.addEventListener('change',()=>{if(cb.checked){draftNA.add(s.id);setVal(i,10,{na:true});persistDraft()}else{draftNA.delete(s.id);setVal(i,null);persistDraft()} paintMeter(i)});row.append(label); }
       const fromX = x => { const r = m.el.getBoundingClientRect(); return clamp(Math.ceil((x - r.left) / r.width * 10), 1, 10); };
-      let down = false;
+      let down = false, startX=0, startY=0, startValue=null, moved=false;
       m.el.addEventListener('pointerdown', e => {
-        down = true; m.el.setPointerCapture(e.pointerId);
-        if (e.pointerType !== 'touch') setVal(i, fromX(e.clientX));
+        down=true; startX=e.clientX; startY=e.clientY; startValue=draft[i]; moved=false;
+        m.el.setPointerCapture(e.pointerId);
       });
-      m.el.addEventListener('pointermove', e => { if (down) setVal(i, fromX(e.clientX)); });
-      m.el.addEventListener('pointerup', e => { if (down && e.pointerType === 'touch') setVal(i, fromX(e.clientX)); down = false; });
-      m.el.addEventListener('pointercancel', () => { down = false; });
+      m.el.addEventListener('pointermove', e => {
+        if(!down) return;
+        if(Math.abs(e.clientX-startX)>8) moved=true;
+        if(moved && e.pointerType!=='touch') setVal(i,fromX(e.clientX));
+      });
+      m.el.addEventListener('pointerup', e => {
+        if(!down) return; down=false;
+        if(e.pointerType==='touch' && Math.abs(e.clientY-startY)>12) return;
+        const v=fromX(e.clientX); setVal(i,!moved && v===startValue ? null : v);
+      });
+      m.el.addEventListener('pointercancel',()=>{down=false});
       m.el.addEventListener('keydown', e => {
         const v = draft[i] ?? 0;
         if (e.key === 'ArrowRight' || e.key === 'ArrowUp') setVal(i, v + 1);
         else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') setVal(i, v - 1);
         else if (e.key === 'Home') setVal(i, 1);
         else if (e.key === 'End') setVal(i, 10);
-        else if (/^[0-9]$/.test(e.key)) setVal(i, e.key === '0' ? 10 : Number(e.key));
+        else if (e.key === 'Backspace' || e.key === 'Delete') setVal(i, null);
+        else if (/^[0-9]$/.test(e.key)) { const n=e.key === '0'?10:Number(e.key);setVal(i,draft[i]===n?null:n); }
         else return;
         e.preventDefault();
       });
@@ -900,7 +903,6 @@ function buildMeters() {
 }
 function paintMeter(i) {
   const m = meters[i], v = draft[i];
-  m.row.querySelectorAll(".quick-rates button").forEach(b=>b.setAttribute("aria-pressed",String(Number(b.textContent.split(" · ")[0])===v && !draftNA.has(SLOTS[i].id))));
   const cb=m.row.querySelector("[data-na]");if(cb)cb.checked=draftNA.has(SLOTS[i].id);
   m.cells.forEach((c, k) => { c.classList.toggle('on', v != null && k < v); c.classList.toggle('last', lastVals[i] != null && k === lastVals[i] - 1); });
   m.el.style.setProperty('--c', v != null ? col(v) : 'var(--faint)');
@@ -910,19 +912,34 @@ function paintMeter(i) {
   m.hint.textContent = draftNA.has(SLOTS[i].id) ? 'Excluded from your score for this check-in' : v == null ? anchorFor(SLOTS[i],10) : anchorFor(SLOTS[i], v);
 }
 function setVal(i, v, opts = {}) {
-  v = clamp(v, 1, 10);
+  v = v == null ? null : clamp(v, 1, 10);
   if (draft[i] === v) return;
+  if(!opts.na) draftNA.delete(SLOTS[i].id);
   draft[i] = v; paintMeter(i);
   if (!reduceMotion) meters[i].val.animate([{ transform: 'scale(1.4)' }, { transform: 'scale(1)' }], { duration: 320, easing: EASE });
   if (!opts.noCode) syncCode();
   updateLogBtn();
+  if(!opts.silent) persistDraft();
 }
 const complete = () => draft.every(v => v != null);
 function syncCode() { codeInput.value = complete() ? codeOf(draft) : ''; }
-function updateLogBtn() {
-  const missing = draft.filter(v => v == null).length;
-  logBtn.textContent = missing ? `Rate ${missing} more` : 'Log update';
-  logBtn.setAttribute('aria-disabled', String(missing > 0));
+function updateLogBtn() { logBtn.textContent='Done'; logBtn.removeAttribute('aria-disabled'); }
+function encodeDraft(values,na) {
+  const rated=values.reduce((mask,v,i)=>v==null?mask:mask+(2**i),0);
+  const excluded=[...OPTIONAL].reduce((mask,id,i)=>na.has(id)?mask+(2**i):mask,0);
+  return values.map(v=>v==null?'0':String(v-1)).join('')+String(rated).padStart(7,'0')+String(excluded).padStart(2,'0');
+}
+let saveTimer, lastInputAt=0;
+function persistDraft() {
+  const c=encodeDraft(draft,draftNA);
+  if(pending.at(-1)?.c===c || (!pending.length && confirmed.at(-1)?.c===c)) return;
+  const now=Math.max(Date.now(),lastInputAt+1);lastInputAt=now;
+  const excludedIds = Array.from(draftNA);
+  const details = { na: excludedIds };
+  const e = { t: new Date(now).toISOString(), s: 31, c: c, x: details };
+  pending.push(e);save(LS.pending,pending);rebuild();renderAll();
+  setSync('saving',connected()?'Saving…':'Sheet not connected');
+  clearTimeout(saveTimer);saveTimer=setTimeout(sync,250);
 }
 function openSheet(focusId, preset) {
   if (!meters.length) buildMeters();
@@ -949,9 +966,9 @@ codeInput.addEventListener('input', () => {
 });
 codeInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
 sheet.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); submit(); } });
-$('#allTen').addEventListener('click', () => { SLOTS.forEach((_, i) => setVal(i, 10)); syncCode(); });
+$('#allTen').addEventListener('click', () => { SLOTS.forEach((_, i) => setVal(i, 10,{silent:true})); syncCode();persistDraft(); });
 $('#resetLast').addEventListener('click', () => {
-  draft = lastVals.slice(); draftNA.forEach(id=>{draft[SLOTS.findIndex(s=>s.id===id)]=10}); SLOTS.forEach((_, i) => paintMeter(i)); syncCode(); updateLogBtn();
+  draft = lastVals.slice(); draftNA.forEach(id=>{draft[SLOTS.findIndex(s=>s.id===id)]=10}); SLOTS.forEach((_, i) => paintMeter(i)); syncCode(); updateLogBtn();persistDraft();
 });
 logBtn.addEventListener('click', submit);
 $('#fab').addEventListener('click', () => openSheet());
@@ -959,20 +976,7 @@ document.addEventListener('keydown', e => {
   if ((e.key === 'l' || e.key === 'L') && !e.metaKey && !e.ctrlKey && !e.altKey && !document.querySelector('dialog[open]') && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); openSheet(); }
 });
 
-function submit() {
-  if (!complete()) {
-    const miss = draft.findIndex(v => v == null);
-    if (miss >= 0 && meters[miss]) { meters[miss].row.closest("details").open=true; meters[miss].row.scrollIntoView({ block: 'center', behavior: 'smooth' }); meters[miss].el.focus({ preventScroll: true }); }
-    return;
-  }
-  const e = { t: new Date().toISOString(), s: 28, c: codeOf(draft)+[...OPTIONAL].map(id=>draftNA.has(id)?'1':'0').join(''), x:{na:[...draftNA]} };
-  pending.push(e); save(LS.pending, pending);
-  rebuild(); renderAll();
-  closeDialog(sheet);
-  const low = SLOTS.map((s, i) => ({ s, v: draft[i] })).sort((a, b) => a.v - b.v)[0];
-  toast(low.v >= IN_PLACE ? 'Logged. Everything is in its place.' : `Logged. Fix first: ${low.s.label} (${low.v}).`);
-  sync();
-}
+function submit() { closeDialog(sheet); }
 
 /* ---------- toast ---------- */
 let toastTimer;
@@ -984,9 +988,11 @@ function toast(msg) {
 /* ---------- sync with Google Sheets ---------- */
 function setSync(state, msg) {
   $('#syncBtn').dataset.state = state;
-  $('#syncText').textContent = msg || ({ local: 'Local only', ok: 'Synced', saving: 'Syncing', queued: 'Queued', error: 'Offline' })[state];
+  $('#syncText').textContent = msg || ({ local: 'Sheet not connected', ok: 'Saved to Sheet', saving: 'Saving…', queued: 'Waiting to sync', error: 'Not saved to Sheet' })[state];
+  $('#inputSync').textContent=$('#syncText').textContent;
 }
 async function api(params) {
+  if(managed) return new Promise((resolve,reject)=>google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).dashboardApi(params));
   const u = new URL(cfg.url);
   u.searchParams.set('key', cfg.key);
   Object.keys(params).forEach(k => u.searchParams.set(k, params[k]));
@@ -998,7 +1004,7 @@ async function api(params) {
   } finally { clearTimeout(to); }
 }
 async function sync() {
-  if (!cfg.url || !cfg.key) { setSync('local'); return; }
+  if (!connected()) { setSync('error','Sheet not connected'); return; }
   if (syncing) return;
   syncing = true; setSync('saving');
   try {
@@ -1014,19 +1020,19 @@ async function sync() {
     }
     save(LS.confirmed, confirmed); save(LS.pending, pending);
     rebuild(); renderAll();
-    setSync('ok'); lastSyncAt = Date.now();
+    setSync(pending.length?'saving':'ok'); lastSyncAt = Date.now();
   } catch (err) {
     save(LS.confirmed, confirmed); save(LS.pending, pending); rebuild(); renderAll();
     const msg = String(err && err.message || err);
     if (/unauthorized/.test(msg)) setSync('error', 'Check secret');
     else if (pending.length) setSync('queued', pending.length + ' queued');
     else setSync('error', 'Offline');
-  } finally { syncing = false; }
+  } finally { syncing = false; if(pending.length && connected()) {clearTimeout(saveTimer);saveTimer=setTimeout(sync,5000);} }
 }
 
 /* connect dialog */
 const connect = $('#connect');
-$('#syncBtn').addEventListener('click', () => { $('#cfgUrl').value = cfg.url || ''; $('#cfgKey').value = cfg.key || ''; openDialog(connect); });
+$('#syncBtn').addEventListener('click', () => { if(managed) {sync();return;}  $('#cfgUrl').value = cfg.url || ''; $('#cfgKey').value = cfg.key || ''; openDialog(connect); });
 $('#cfgSave').addEventListener('click', () => {
   cfg = { url: $('#cfgUrl').value.trim(), key: $('#cfgKey').value.trim() };
   save(LS.cfg, cfg); closeDialog(connect);
@@ -1092,7 +1098,7 @@ function handleQuery() {
 buildRing();
 handleSetupHash();
 rebuild();
-setSync(cfg.url && cfg.key ? 'saving' : 'local');
+setSync(connected()?'saving':'error',connected()?undefined:'Sheet not connected');
 requestAnimationFrame(() => {
   renderAll();
   [seriesSeg, rangeSeg].forEach(s => movePill(s, true));
