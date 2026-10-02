@@ -4,18 +4,24 @@
 
 ## Use
 
-The interface is hosted on GitHub Pages. Sign in with the Google account that owns the Sheet if prompted, then retry the connection. No Sheet URL or secret entry is required. Tap a number to score; tap the selected number again to clear. Inputs update immediately. The Saved to Sheet indicator confirms remote persistence; pending inputs stay queued during connection interruptions.
+The interface runs on GitHub Pages. On a new device, click the sync indicator, Sign in to Google, Connect Sheet, then Open dashboard. No URL or key entry is needed. This grants a seven-day sync session; reconnect when it expires. Your Sheet stays private. Tap a score to update instantly; tap the same number again to clear. Saved to Sheet confirms a successful server response. Pending changes are queued during connection interruptions.
 
-Open Log update → Voice update to speak or dictate several ratings, such as “floor nine, bed ten, car interior seven.” Review the interpreted ratings and press Save ratings. Unknown or ambiguous commands are flagged rather than guessed. Browser speech recognition availability varies; keyboard dictation and typed commands use the same parser. No AI API key is required.
+Open Log update → Voice update. Say “floor nine, bed ten, car interior seven,” review the recognized ratings and press Save ratings. Commands support score words/numbers, clear/reset, and not applicable for optional tomorrow metrics. Unrecognized commands are flagged. Browser speech recognition varies; keyboard dictation or typed commands work with the same parser. Browser speech services may process microphone audio. No AI API key is required.
 
-## Edit with any GitHub-connected AI
+## Editing from other AI tools
 
-Edit index.html on main and GitHub Pages automatically publishes the change. The app has 22 metrics; keep existing metric order and schemas compatible. Code.gs is the Sheet backend. Backend changes require a new version of the existing Apps Script deployment. Keep that deployment Only myself, executing as Me. Never commit credentials or change the Sheet to public access.
+Give your GitHub-connected AI access to this repository. Edit index.html on main; GitHub Pages automatically publishes it. AGENTS.md documents behavior and compatibility requirements. GitHub access authorizes code edits, not access to your private scores. To record scores through another AI, separately authorize that AI's Google Sheets integration or a secure API connection; do not publish session tokens or permanent secrets.
 
-The browser connects to an authenticated Apps Script iframe relay. Both ends validate message origin; the server verifies the signed-in Sheet owner. Cross-site cookie restrictions may prevent the embedded connection; verify on the target device. The older keyed API remains for existing authorized integrations. GitHub access alone does not authorize an outside AI to read or write Sheet data; it needs its own approved Google Sheets connection or securely configured API credential.
+## Backend
+
+Code.gs is bound to the private Sheet. Owner-only web app sign-in issues an expiring session. The session is transferred in a URL fragment, removed from the address immediately and retained on the device. The existing key-protected API validates session expiration server-side. Unknown and expired credentials cannot read/write scores. The owner-only connection deployment remains Only myself, executing as Me. The existing public API still requires a valid key. Backend changes require updating both deployments to the same version; GitHub Pages only deploys frontend changes. Current backend version: 5.
 
 ## Data compatibility
 
-The original seven metrics are floor, hygiene, laundry, vehicle, homework, business, faith. Additional metrics are appended. Bible 10 means today's verse was read and a takeaway can be recalled; there is no written reflection.
+22 metrics. Original first seven remain floor, hygiene, laundry, vehicle, homework, business, faith. Bible 10 means today's verse was read with a takeaway in mind; no written reflection.
 
-Schema 31: 22 score digits (0–9 encode scores 1–10), seven decimal digits encoding the rated bitmask, then two decimal digits encoding exclusions for charging, camera, packed, food, clothes, equipment. An unset rated bit means cleared/unrated, not score 1. Readers retain schemas 7 and 28. Browser cache and pending queue are recovery tools; Google Sheets is the cross-device record.
+Schema 31: 22 digits (0–9 encode 1–10), seven decimal digits for the rated bitmask, two decimal digits for exclusions in order charging, camera, packed, food, clothes, equipment. Unset rated bits mean cleared/unrated. Readers retain schemas 7 and 28. Google Sheets is the cross-device source; browser cache/pending queue provide recovery.
+
+## Validation
+
+Syntax, historical schemas, persisted clears, instant autosave, voice parsing and batched voice saving were checked. Live Google sign-in, automatic Sheet reading and persisted connection after reload were verified. Microphone transcription depends on the user's browser/device and should be checked there.
