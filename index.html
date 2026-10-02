@@ -305,7 +305,7 @@ dialog.open .sheet { transform: none; }
       <p id="lastLogged">Loading</p>
     </div>
     <div class="tools">
-      <button class="sync" id="syncBtn" data-state="local" aria-label="Connection settings"><span class="dot"></span><span id="syncText">Local only</span></button>
+      <button class="sync" id="syncBtn" data-state="local" aria-label="Sheet sync status"><span class="dot"></span><span id="syncText">Local only</span></button>
       <button class="icon" id="themeBtn" aria-label="Switch theme">
         <svg class="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
         <svg class="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
@@ -467,6 +467,7 @@ const fmt = n => n.toFixed(1);
 
 /* ---------- state ---------- */
 const managed = typeof google !== 'undefined' && !!google.script?.run;
+if (!managed && !new URLSearchParams(location.search).has('preview')) { location.replace('https://script.google.com/macros/s/AKfycbwzWh-aAMVgTnohCvaQN2dqEOgDlRoF9Kwn7QDVj4nZOdz1GAz17hNulUtYw1Ml0qb5/exec'); return; }
 const connected = () => managed || !!(cfg.url && cfg.key);
 let cfg = load(LS.cfg, { url: '', key: '' });
 let confirmed = load(LS.confirmed, []);
