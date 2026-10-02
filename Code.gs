@@ -15,7 +15,7 @@
 
 const SECRET = PropertiesService.getScriptProperties().getProperty('SECRET');
 const SHEET_NAME = 'Log';
-const HEADERS = ['Timestamp', 'Schema', 'Code'];
+const HEADERS = ['Timestamp', 'Schema', 'Code', 'Details'];
 const MAX_ROWS_RETURNED = 2000;
 const DEDUPE_WINDOW = 60;
 
@@ -47,6 +47,10 @@ function addRow_(sh, p) {
   if (!/^\d{1,40}$/.test(code)) return { ok: false, error: 'bad code' };
   if (!schema || schema < 1 || schema > 40) return { ok: false, error: 'bad schema' };
 
+  let details = {};
+  try { details = JSON.parse(p.notes || '{}'); } catch (_) { return {ok:false,error:'bad details'}; }
+  if (!details || !Array.isArray(details.na || []) || JSON.stringify(details).length > 4000) return {ok:false,error:'bad details'};
+  details = {na:(details.na || []).filter(function(id){return typeof id === 'string' && /^[a-z]+$/.test(id);}).slice(0,40)};
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
@@ -56,7 +60,7 @@ function addRow_(sh, p) {
       const recent = sh.getRange(from, 1, last - from + 1, 1).getValues().map(function (r) { return toIso_(r[0]); });
       if (recent.indexOf(t) !== -1) return { ok: true, duplicate: true };
     }
-    sh.appendRow([t, schema, code]);
+    sh.appendRow([t, schema, code, JSON.stringify(details)]);
     return { ok: true };
   } finally {
     lock.releaseLock();
@@ -67,10 +71,10 @@ function listRows_(sh) {
   const last = sh.getLastRow();
   if (last < 2) return { ok: true, rows: [] };
   const from = Math.max(2, last - MAX_ROWS_RETURNED + 1);
-  const values = sh.getRange(from, 1, last - from + 1, 3).getValues();
+  const values = sh.getRange(from, 1, last - from + 1, 4).getValues();
   const rows = values
     .filter(function (r) { return r[0] !== '' && r[2] !== ''; })
-    .map(function (r) { return [toIso_(r[0]), Number(r[1]) || 0, String(r[2])]; });
+    .map(function (r) { let details = {}; try { details = JSON.parse(r[3] || '{}'); } catch (_) {} return [toIso_(r[0]), Number(r[1]) || 0, String(r[2]), details]; });
   return { ok: true, rows: rows };
 }
 
@@ -85,6 +89,7 @@ function getSheet_() {
     sh.setColumnWidth(1, 220);
     sh.setColumnWidth(3, 260);
   }
+  if (sh.getRange(1, 4).getValue() !== 'Details') sh.getRange(1, 4).setValue('Details').setFontWeight('bold');
   return sh;
 }
 
