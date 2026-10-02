@@ -530,7 +530,7 @@ function startSheetConnection() {
 }
 window.addEventListener('message', event => {
   if (!relayFrame || !event.source || !/^https:\/\/[a-z0-9-]+\.script\.googleusercontent\.com$/.test(event.origin)) return;
-  try { if (event.source.top !== relayFrame.contentWindow) return; } catch (_) { return; }
+  try { if (event.source.parent.parent !== relayFrame.contentWindow) return; } catch (_) { return; }
   const data = event.data;
   if (!data || typeof data !== 'object') return;
   if (data.type === 'personal-space-ready') {
