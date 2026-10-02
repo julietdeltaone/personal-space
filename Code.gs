@@ -1,16 +1,6 @@
-/**
- * Personal Space Dashboard backend
- *
- * Setup:
- * 1. Create a Google Sheet, then Extensions > Apps Script. Paste this file over Code.gs.
- * 2. setup() creates a private SECRET in Project Settings > Script properties.
- * 3. Run setup() once from the editor and approve the permissions.
- * 4. Deploy > New deployment > Web app.
- *      Execute as: Me
- *      Who has access: Anyone
- * 5. Copy the Web app URL (ends in /exec). Paste it and your SECRET into the dashboard's Connect panel.
- *
- * After you edit this file later, use Deploy > Manage deployments > Edit > New version.
+/** Personal Space Sheet backend. GitHub Pages serves the interface.
+ * Deploy this version to the existing owner-only web app to enable the authenticated relay.
+ * Legacy keyed API remains available through its existing deployment.
  */
 
 const SECRET = PropertiesService.getScriptProperties().getProperty('SECRET');
@@ -29,6 +19,7 @@ function setup() {
 function doGet(e) {
   ScriptApp.requireAllScopes(ScriptApp.AuthMode.FULL);
   const p = (e && e.parameter) || {};
+  if (p.bridge === '1') return sheetBridge_();
   if (!p.action && !p.key) return dashboardPage_();
   try {
     if (p.key !== SECRET) return out_({ ok: false, error: 'unauthorized' });
@@ -134,4 +125,27 @@ function dashboardApi(p) {
   if (p.action === 'list') return listRows_(sh);
   if (p.action === 'add') return addRow_(sh,p);
   return {ok:false,error:'Unknown action'};
+}
+
+
+/** Authenticated relay for the GitHub-hosted interface. Never publishes a Sheet secret. */
+function sheetBridge_() {
+  requireDashboardOwner_();
+  return HtmlService.createHtmlOutput(`<!doctype html><title>Sheet connection</title>
+<p>Google Sheet connection active. Return to your GitHub dashboard.</p>
+<script>
+const origin = 'https://julietdeltaone.github.io';
+window.addEventListener('message', function(event) {
+  if (event.origin !== origin || event.source !== window.top) return;
+  const request = event.data;
+  if (!request || request.type !== 'personal-space-request' || typeof request.id !== 'string') return;
+  if (!request.params || !['list','add'].includes(request.params.action)) return;
+  google.script.run.withSuccessHandler(function(result) {
+    window.top.postMessage({type:'personal-space-response',id:request.id,result:result}, origin);
+  }).withFailureHandler(function(error) {
+    window.top.postMessage({type:'personal-space-response',id:request.id,error:String(error.message || error)}, origin);
+  }).dashboardApi(request.params);
+});
+window.top.postMessage({type:'personal-space-ready'}, origin);
+</script>`).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
