@@ -19,10 +19,11 @@ function setup() {
 function doGet(e) {
   ScriptApp.requireAllScopes(ScriptApp.AuthMode.FULL);
   const p = (e && e.parameter) || {};
+  if (p.connect === '1') return connectionPage_();
   if (p.bridge === '1') return sheetBridge_();
   if (!p.action && !p.key) return dashboardPage_();
   try {
-    if (p.key !== SECRET) return out_({ ok: false, error: 'unauthorized' });
+    if (!validDashboardKey_(p.key)) return out_({ ok: false, error: 'unauthorized' });
     const sh = getSheet_();
     if (p.action === 'add') return out_(addRow_(sh, p));
     if (p.action === 'list') return out_(listRows_(sh));
@@ -148,4 +149,33 @@ window.addEventListener('message', function(event) {
 });
 window.top.postMessage({type:'personal-space-ready'}, origin);
 </script>`).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function validDashboardKey_(key) {
+  if (!key) return false;
+  if (SECRET && key === SECRET) return true;
+  if (!/^[a-f0-9]{64}$/.test(String(key))) return false;
+  const expires = Number(PropertiesService.getScriptProperties().getProperty('DASHBOARD_SESSION_' + key));
+  return expires > Date.now();
+}
+function createDashboardSession() {
+  requireDashboardOwner_();
+  const props = PropertiesService.getScriptProperties();
+  const now = Date.now();
+  const saved = props.getProperties();
+  Object.keys(saved).forEach(function(key) {
+    if (key.indexOf('DASHBOARD_SESSION_') === 0 && Number(saved[key]) <= now) props.deleteProperty(key);
+  });
+  const token = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g,'');
+  const expires = now + 7*86400000;
+  props.setProperty('DASHBOARD_SESSION_' + token, String(expires));
+  return {token:token,expires:expires};
+}
+function connectionPage_() {
+  requireDashboardOwner_();
+  return HtmlService.createHtmlOutput(`<!doctype html><meta name="referrer" content="no-referrer"><title>Connect your dashboard</title>
+<style>body{font:18px system-ui;max-width:520px;margin:12vh auto;padding:24px}button,a{font:inherit;padding:14px 20px;border-radius:10px;display:inline-block}a{background:#176b48;color:white;text-decoration:none}p{line-height:1.5}</style>
+<h1>Connect your dashboard</h1><p>Enable seven days of private Google Sheet sync on this device. Your dashboard stays on GitHub.</p>
+<button id="connect">Connect Sheet</button><p id="status" role="status"></p><a id="return" target="_top" style="display:none" rel="noreferrer">Open dashboard</a>
+<script>document.getElementById('connect').onclick=function(){this.disabled=true;document.getElementById('status').textContent='Connecting…';google.script.run.withSuccessHandler(function(session){const link=document.getElementById('return');link.href='https://julietdeltaone.github.io/personal-space/#session='+encodeURIComponent(session.token)+'&expires='+session.expires;link.style.display='inline-block';document.getElementById('status').textContent='Connected. Open your dashboard to finish.';}).withFailureHandler(function(){document.getElementById('connect').disabled=false;document.getElementById('status').textContent='Connection failed. Sign in as the Sheet owner and retry.';}).createDashboardSession();};</script>`).setTitle('Connect dashboard').addMetaTag('viewport','width=device-width, initial-scale=1');
 }
