@@ -293,6 +293,7 @@ dialog.open .sheet { transform: none; }
 #inputSync{align-self:center;font-size:13px;color:var(--muted);flex:1}.sheet-foot .btn.primary{flex:0;padding:12px 20px}
 @media(max-width:600px){.sheet{width:100vw;max-height:96dvh}.sheet-pad{padding:16px}.metric-group{padding:12px}.meter{min-height:44px}.sheet-foot{position:sticky;bottom:0;background:var(--sheet-bg);padding-bottom:calc(16px + env(safe-area-inset-bottom))}}
 
+.voice-entry{margin:14px 0}.voice-entry summary{cursor:pointer;font-weight:600;padding:8px 0}.voice-entry textarea{width:100%;font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px}.voice-entry ul{padding-left:20px;margin:10px 0}
 </style>
 </head>
 <body>
@@ -374,7 +375,12 @@ dialog.open .sheet { transform: none; }
         <h2 id="sheetTitle">Log update</h2>
         <button class="icon" id="closeSheet" aria-label="Close"><svg viewBox="0 0 24 24" style="position:static"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
-      <label class="codebox"><span>Quick code</span>
+      <details class="voice-entry"><summary>Voice update</summary>
+<p class="legend">Say “floor nine, bed ten, car interior seven.” Review the ratings, then save. Your browser may use its speech service.</p>
+<label class="field"><span>Spoken or typed ratings</span><textarea id="voiceText" rows="2" placeholder="Floor 9, bed 10, car interior 7"></textarea></label>
+<div class="btn-row"><button class="btn" id="voiceStart" type="button">Speak ratings</button><button class="btn primary" id="voiceApply" type="button" disabled>Save ratings</button></div>
+<ul id="voicePreview"></ul><p class="legend" id="voiceStatus" role="status" aria-live="polite">You can also use your keyboard’s microphone.</p></details>
+<label class="codebox"><span>Quick code</span>
         <input id="codeInput" inputmode="numeric" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Type digits or tap the bars below">
       </label>
       <p class="legend">Tap a number to score. Tap the selected number again to clear. Changes save automatically; the indicator confirms when they reach the Sheet.</p><div id="meters"></div>
@@ -406,6 +412,48 @@ dialog.open .sheet { transform: none; }
 <div class="toast" id="toast" role="status"></div>
 
 <script>
+/* Shared score parser: browser voice, typed commands, and future AI clients. */
+(function(root) {
+'use strict';
+const aliases = {
+ floor:['floor','everything off the floor','off the floor'], hygiene:['hygiene'], laundry:['laundry'],
+ vehicle:['car','vehicle','car general'], homework:['homework'], business:['business'], faith:['bible','bible reading','faith'],
+ swept:['swept','sweep','floor swept','floor cleanliness'], putaway:['put away','items put away'], bedmade:['bed','bed made'],
+ bedding:['bedding','bedding fresh'], nightstand:['nightstand'], smart:['smart','automations','smart outlets','lights'],
+ electronics:['electronics','devices'], charging:['charging','charged','electronics charged'], camera:['camera','camera kit'],
+ interior:['car interior','interior'], exterior:['car exterior','exterior'], packed:['car packed','packed'], food:['food','food and drinks'],
+ clothes:['clothes'], equipment:['equipment','work equipment']
+};
+const optional = new Set(['charging','camera','packed','food','clothes','equipment']);
+const words = {one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10};
+const names = Object.entries(aliases).flatMap(([id,list])=>list.map(name=>({id,name}))).sort((a,b)=>b.name.length-a.name.length);
+function parse(text) {
+ const updates = new Map(), warnings=[];
+ const clauses=String(text).toLowerCase().replace(/[.!?]/g,',').split(/[,;\n]|\band\b(?!\s+drinks)/).map(t=>t.trim()).filter(Boolean);
+ for (let clause of clauses) {
+  const original=clause;
+  clause=clause.replace(/^(?:please\s+)?(?:set|rate|score|mark)\s+(?:my\s+|the\s+)?/,'').replace(/^(?:my|the)\s+/,'');
+  const clear = /^(?:clear|reset|remove)\s+/.test(clause);
+  if(clear) clause=clause.replace(/^(?:clear|reset|remove)\s+(?:my\s+|the\s+)?/,'');
+  const match=names.find(x=>clause===x.name||clause.startsWith(x.name+' '));
+  if(!match) {warnings.push('Not recognized: '+original);continue;}
+  let value=clause.slice(match.name.length).trim().replace(/^(?:score\s+)?(?:is|to|at|equals)\s+/,'').replace(/^a\s+/,'').replace(/\s+(?:out of|of)\s+(?:10|ten)$/,'').trim();
+  if(clear && !value || /^(?:clear|reset|unrated)$/.test(value)) {updates.set(match.id,{id:match.id,value:null,na:false});continue;}
+  if(/^(?:not applicable|not needed|n\/?a)$/.test(value)) {
+   if(optional.has(match.id)) updates.set(match.id,{id:match.id,value:10,na:true});
+   else warnings.push('N/A is not available for '+match.name);
+   continue;
+  }
+  const rating=Object.hasOwn(words,value)?words[value]:/^\d+$/.test(value)?Number(value):NaN;
+  if(!Number.isInteger(rating)||rating<1||rating>10) {warnings.push('Use a score from 1 to 10: '+original);continue;}
+  updates.set(match.id,{id:match.id,value:rating,na:false});
+ }
+ return {updates:Array.from(updates.values()),warnings:warnings};
+}
+root.PersonalSpaceVoice={parse:parse};
+if(typeof module!=='undefined')module.exports=root.PersonalSpaceVoice;
+})(typeof window!=='undefined'?window:globalThis);
+
 (() => {
 'use strict';
 
@@ -481,7 +529,7 @@ function startSheetConnection() {
   setTimeout(() => { if (!connected()) setSync('error','Sign in to sync'); }, 15000);
 }
 window.addEventListener('message', event => {
-  if (!relayFrame || !event.source || !/^https:\/\/[a-z0-9-]+(?:-|\.)script\.googleusercontent\.com$/.test(event.origin)) return;
+  if (!relayFrame || !event.source || !/^https:\/\/[a-z0-9-]+\.script\.googleusercontent\.com$/.test(event.origin)) return;
   try { if (event.source.top !== relayFrame.contentWindow) return; } catch (_) { return; }
   const data = event.data;
   if (!data || typeof data !== 'object') return;
@@ -992,6 +1040,46 @@ function openSheet(focusId, preset) {
     } else meters[0].el.focus();
   }, 80);
 }
+/* Voice and keyboard dictation share the same preview and autosave path. */
+const voiceText=$('#voiceText'), voiceStatus=$('#voiceStatus'), voicePreview=$('#voicePreview'), voiceApply=$('#voiceApply');
+let recognition=null, voiceUpdates=[];
+function reviewVoice() {
+ const result=PersonalSpaceVoice.parse(voiceText.value);
+ voiceUpdates=result.updates;
+ voicePreview.replaceChildren();
+ for(const update of voiceUpdates) {
+  const slot=SLOTS.find(s=>s.id===update.id), row=document.createElement('li');
+  row.textContent=slot.label+': '+(update.na?'N/A':update.value==null?'Clear':update.value);
+  voicePreview.appendChild(row);
+ }
+ voiceStatus.textContent=result.warnings.join(' · ') || (voiceUpdates.length?'Ready to save '+voiceUpdates.length+' ratings.':'Say or type a metric and a score from 1 to 10.');
+ voiceApply.disabled=!voiceUpdates.length;
+}
+voiceText.addEventListener('input',reviewVoice);
+voiceApply.addEventListener('click',()=>{
+ for(const update of voiceUpdates) {
+  const i=SLOTS.findIndex(s=>s.id===update.id);
+  if(update.na) draftNA.add(update.id); else draftNA.delete(update.id);
+  setVal(i,update.value,{silent:true,na:update.na}); paintMeter(i);
+ }
+ syncCode();persistDraft();
+ voiceStatus.textContent='Ratings applied. Check the sync indicator for Sheet confirmation.';
+ voiceText.value='';voiceUpdates=[];voiceApply.disabled=true;
+});
+$('#voiceStart').addEventListener('click',()=>{
+ const Speech=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!Speech){voiceStatus.textContent='Use your keyboard’s microphone to dictate into this field.';voiceText.focus();return;}
+ if(recognition){recognition.stop();return;}
+ const session=new Speech();recognition=session;
+ session.lang='en-US';session.continuous=false;session.interimResults=false;
+ session.onstart=()=>{voiceStatus.textContent='Listening…';$('#voiceStart').textContent='Stop listening';};
+ session.onresult=event=>{voiceText.value=Array.from(event.results).filter(r=>r.isFinal).map(r=>r[0].transcript).join(' ');reviewVoice();};
+ session.onerror=event=>{voiceStatus.textContent=event.error==='not-allowed'?'Microphone unavailable. Use keyboard dictation or type.':'Speech could not be recognized. Try again or use keyboard dictation.';};
+ session.onend=()=>{recognition=null;$('#voiceStart').textContent='Speak ratings';};
+ try{session.start();}catch(_){recognition=null;voiceStatus.textContent='Microphone unavailable. Use keyboard dictation or type.';}
+});
+sheet.addEventListener('close',()=>{if(recognition)recognition.abort();});
+
 codeInput.addEventListener('input', () => {
   const digits = codeInput.value.replace(/\D/g, '').slice(0, SLOTS.length);
   if (codeInput.value !== digits) codeInput.value = digits;
