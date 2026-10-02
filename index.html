@@ -394,13 +394,10 @@ dialog.open .sheet { transform: none; }
         <h2 id="connectTitle">Connect to Google Sheets</h2>
         <button class="icon" id="closeConnect" aria-label="Close"><svg viewBox="0 0 24 24" style="position:static"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
-      <p>Paste your Apps Script web app URL and the secret from Code.gs. Both stay on this device. Entries logged before connecting are uploaded once you save.</p>
-      <label class="field"><span>Web app URL</span><input id="cfgUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off" spellcheck="false"></label>
-      <label class="field"><span>Secret</span><input id="cfgKey" type="password" placeholder="Same value as SECRET in Code.gs" autocomplete="off" spellcheck="false"></label>
+      <p>Your dashboard runs on GitHub. Sign in to Google to enable automatic saving to your private Sheet. No URL or secret is needed.</p>
       <div class="btn-row">
-        <button class="btn primary" id="cfgSave" type="button">Save and sync</button>
-        <button class="btn" id="cfgCopy" type="button">Copy phone setup link</button>
-        <button class="btn" id="cfgOff" type="button">Disconnect</button>
+        <a class="btn primary" id="googleSignIn" target="_blank" rel="noopener">Sign in to Google</a>
+        <button class="btn" id="retryConnect" type="button">Retry connection</button>
       </div>
     </div>
   </div>
@@ -467,9 +464,44 @@ const fmt = n => n.toFixed(1);
 
 /* ---------- state ---------- */
 const managed = typeof google !== 'undefined' && !!google.script?.run;
-if (!managed && !new URLSearchParams(location.search).has('preview')) { location.replace('https://script.google.com/macros/s/AKfycbwzWh-aAMVgTnohCvaQN2dqEOgDlRoF9Kwn7QDVj4nZOdz1GAz17hNulUtYw1Ml0qb5/exec'); return; }
-const connected = () => managed || !!(cfg.url && cfg.key);
+const SHEET_APP = 'https://script.google.com/macros/s/AKfycbwzWh-aAMVgTnohCvaQN2dqEOgDlRoF9Kwn7QDVj4nZOdz1GAz17hNulUtYw1Ml0qb5/exec';
 let cfg = load(LS.cfg, { url: '', key: '' });
+let relayWindow = null, relayOrigin = null, relayFrame = null;
+const calls = new Map();
+const connected = () => managed || !!relayWindow || !!(cfg.url && cfg.key);
+function startSheetConnection() {
+  relayWindow = null;
+  if (relayFrame) relayFrame.remove();
+  relayFrame = document.createElement('iframe');
+  relayFrame.src = SHEET_APP + '?bridge=1';
+  relayFrame.title = 'Secure Google Sheet connection';
+  relayFrame.hidden = true;
+  document.body.appendChild(relayFrame);
+  setSync('saving','Connecting to Sheet…');
+  setTimeout(() => { if (!connected()) setSync('error','Sign in to sync'); }, 15000);
+}
+window.addEventListener('message', event => {
+  if (!relayFrame || !event.source || !/^https:\/\/[a-z0-9-]+\.script\.googleusercontent\.com$/.test(event.origin)) return;
+  try { if (event.source.top !== relayFrame.contentWindow) return; } catch (_) { return; }
+  const data = event.data;
+  if (!data || typeof data !== 'object') return;
+  if (data.type === 'personal-space-ready') {
+    relayWindow = event.source; relayOrigin = event.origin;
+    if ($('#connect').open) closeDialog($('#connect'));
+    sync();
+  } else if (data.type === 'personal-space-response' && calls.has(data.id)) {
+    const call = calls.get(data.id); calls.delete(data.id); clearTimeout(call.timer);
+    if (data.error) call.reject(new Error(data.error)); else call.resolve(data.result);
+  }
+});
+function relayApi(params) {
+  return new Promise((resolve,reject) => {
+    const id = crypto.randomUUID();
+    const timer = setTimeout(() => { calls.delete(id); reject(new Error('Sheet connection timed out')); }, 20000);
+    calls.set(id,{resolve:resolve,reject:reject,timer:timer});
+    relayWindow.postMessage({type:'personal-space-request',id:id,params:params}, relayOrigin);
+  });
+}
 let confirmed = load(LS.confirmed, []);
 let pending = load(LS.pending, []);
 let entries = [];
@@ -994,6 +1026,7 @@ function setSync(state, msg) {
 }
 async function api(params) {
   if(managed) return new Promise((resolve,reject)=>google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).dashboardApi(params));
+  if (relayWindow) return relayApi(params);
   const u = new URL(cfg.url);
   u.searchParams.set('key', cfg.key);
   Object.keys(params).forEach(k => u.searchParams.set(k, params[k]));
@@ -1005,7 +1038,7 @@ async function api(params) {
   } finally { clearTimeout(to); }
 }
 async function sync() {
-  if (!connected()) { setSync('error','Sheet not connected'); return; }
+  if (!connected()) { setSync('error','Sign in to sync'); return; }
   if (syncing) return;
   syncing = true; setSync('saving');
   try {
@@ -1025,7 +1058,7 @@ async function sync() {
   } catch (err) {
     save(LS.confirmed, confirmed); save(LS.pending, pending); rebuild(); renderAll();
     const msg = String(err && err.message || err);
-    if (/unauthorized/.test(msg)) setSync('error', 'Check secret');
+    if (/unauthorized|Sign in/.test(msg)) setSync('error', 'Sign in to sync');
     else if (pending.length) setSync('queued', pending.length + ' queued');
     else setSync('error', 'Offline');
   } finally { syncing = false; if(pending.length && connected()) {clearTimeout(saveTimer);saveTimer=setTimeout(sync,5000);} }
@@ -1033,19 +1066,10 @@ async function sync() {
 
 /* connect dialog */
 const connect = $('#connect');
-$('#syncBtn').addEventListener('click', () => { if(managed) {sync();return;}  $('#cfgUrl').value = cfg.url || ''; $('#cfgKey').value = cfg.key || ''; openDialog(connect); });
-$('#cfgSave').addEventListener('click', () => {
-  cfg = { url: $('#cfgUrl').value.trim(), key: $('#cfgKey').value.trim() };
-  save(LS.cfg, cfg); closeDialog(connect);
-  if (cfg.url && cfg.key) { toast('Connecting'); sync(); } else setSync('local');
-});
-$('#cfgOff').addEventListener('click', () => { cfg = { url: '', key: '' }; save(LS.cfg, cfg); closeDialog(connect); setSync('local'); toast('Disconnected. Entries stay on this device.'); });
-$('#cfgCopy').addEventListener('click', async () => {
-  const url = $('#cfgUrl').value.trim(), key = $('#cfgKey').value.trim();
-  if (!url || !key) { toast('Fill in both fields first'); return; }
-  const link = location.origin + location.pathname + '#u=' + encodeURIComponent(url) + '&k=' + encodeURIComponent(key);
-  try { await navigator.clipboard.writeText(link); toast('Setup link copied. Open it on your phone once.'); } catch (e) { toast('Copy failed'); }
-});
+$('#googleSignIn').href = SHEET_APP;
+$('#syncBtn').addEventListener('click', () => { if (connected()) sync(); else openDialog(connect); });
+$('#retryConnect').addEventListener('click', () => { closeDialog(connect); startSheetConnection(); });
+window.addEventListener('focus', () => { if (!managed && !relayWindow) startSheetConnection(); });
 
 /* ---------- theme ---------- */
 $('#themeBtn').addEventListener('click', e => {
@@ -1073,15 +1097,6 @@ document.querySelectorAll('.panel').forEach(p => {
 });
 
 /* ---------- boot ---------- */
-function handleSetupHash() {
-  if (!location.hash || location.hash.length < 3) return;
-  const h = new URLSearchParams(location.hash.slice(1));
-  if (h.get('u') && h.get('k')) {
-    cfg = { url: h.get('u'), key: h.get('k') }; save(LS.cfg, cfg);
-    history.replaceState(null, '', location.pathname + location.search);
-    toast('Connected on this device');
-  }
-}
 function handleQuery() {
   const q = new URLSearchParams(location.search);
   const c = q.get('c'), wantLog = q.has('log');
@@ -1097,7 +1112,7 @@ function handleQuery() {
 }
 
 buildRing();
-handleSetupHash();
+if (!managed) startSheetConnection();
 rebuild();
 setSync(connected()?'saving':'error',connected()?undefined:'Sheet not connected');
 requestAnimationFrame(() => {
