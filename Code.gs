@@ -27,6 +27,7 @@ function setup() {
 
 function doGet(e) {
   const p = (e && e.parameter) || {};
+  if (!p.action && !p.key) return dashboardPage_();
   try {
     if (p.key !== SECRET) return out_({ ok: false, error: 'unauthorized' });
     const sh = getSheet_();
@@ -100,4 +101,34 @@ function toIso_(v) {
 
 function out_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Setup-free interface: create an additional Web app deployment with access
+ * "Only myself", execute as Me. Open that deployment URL on each device.
+ * Keep the existing keyed deployment for existing GitHub Pages connections.
+ */
+function requireDashboardOwner_() {
+  const active = Session.getActiveUser().getEmail();
+  const owner = Session.getEffectiveUser().getEmail();
+  if (!active || !owner || active.toLowerCase() !== owner.toLowerCase())
+    throw new Error('Sign in as the Sheet owner to use this dashboard.');
+}
+function dashboardPage_() {
+  try {
+    requireDashboardOwner_();
+    const source = UrlFetchApp.fetch('https://julietdeltaone.github.io/personal-space/', {muteHttpExceptions:true});
+    if (source.getResponseCode() !== 200) throw new Error('Dashboard could not load.');
+    return HtmlService.createHtmlOutput(source.getContentText()).setTitle('Personal space')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+  } catch (err) {
+    return HtmlService.createHtmlOutput('<p>Open your private dashboard deployment and sign in as the Sheet owner.</p>');
+  }
+}
+function dashboardApi(p) {
+  requireDashboardOwner_();
+  const sh = getSheet_();
+  if (p.action === 'list') return listRows_(sh);
+  if (p.action === 'add') return addRow_(sh,p);
+  return {ok:false,error:'Unknown action'};
 }
