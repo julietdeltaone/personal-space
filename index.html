@@ -281,6 +281,27 @@ dialog.open .sheet { transform: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; transition-delay: 0ms !important; }
 }
+
+.metric-group {border:1px solid var(--line);border-radius:18px;padding:14px;margin:12px 0;background:var(--panel)}
+.metric-group summary {cursor:pointer;font-weight:650;min-height:44px;display:flex;align-items:center;justify-content:space-between}
+.metric-group summary small {font-weight:400;color:var(--muted)}
+.quick-rates {display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:10px 0}
+.quick-rates button {min-height:44px;border:1px solid var(--line-2);border-radius:10px;background:var(--panel);cursor:pointer;font-size:13px}
+.quick-rates button[aria-pressed=true] {background:var(--panel-hi);border-color:#45e0b0}
+.na-control {display:flex;gap:10px;align-items:center;min-height:44px;color:var(--muted)}
+.na-control input,.bible-fields input[type=checkbox] {width:22px;height:22px;accent-color:#45e0b0}
+.bible-fields {display:grid;gap:14px;padding:14px 0}
+.bible-fields label {display:grid;gap:8px}
+.bible-fields input[type=text],.bible-fields textarea {width:100%;padding:13px;border:1px solid var(--line-2);border-radius:12px;background:var(--bg);color:var(--text);font:inherit;font-size:16px}
+.bible-fields textarea {min-height:110px;resize:vertical}
+.bible-fields .readcheck {display:flex;align-items:center;gap:10px}
+.seg-g text {display:none}
+.seg.series {flex-wrap:wrap;overflow:visible;max-width:100%}
+.codebox {display:none}
+#bibleHistory {padding:16px;border:1px solid var(--line);border-radius:16px;margin:16px 0;white-space:pre-wrap;color:var(--muted)}
+@media(min-width:1000px){.wrap {width:100%;max-width:none;padding-left:32px;padding-right:32px}.sheet {width:96vw;max-width:none;max-height:94dvh}#meters {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}.metric-group{margin:0}.sheet-pad{padding:24px}.sheet-foot{padding:18px 24px}}
+@media(max-width:600px){.sheet{width:100vw;max-height:96dvh}.sheet-pad{padding:16px}.metric-group{padding:12px}.meter{min-height:44px}.sheet-foot{position:sticky;bottom:0;background:var(--sheet-bg);padding-bottom:calc(16px + env(safe-area-inset-bottom))}}
+
 </style>
 </head>
 <body>
@@ -347,7 +368,7 @@ dialog.open .sheet { transform: none; }
     <p class="stat" id="statLine"></p>
     <p class="legend" id="legend"></p>
   </section>
-  <p class="sr" id="srSummary" aria-live="polite"></p>
+  <div id="bibleHistory" hidden></div><p class="sr" id="srSummary" aria-live="polite"></p>
 </main>
 
 <button class="fab" id="fab" aria-label="Log update">
@@ -365,7 +386,7 @@ dialog.open .sheet { transform: none; }
       <label class="codebox"><span>Quick code</span>
         <input id="codeInput" inputmode="numeric" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Type digits or tap the bars below">
       </label>
-      <div id="meters"></div>
+      <p class="legend">Tap a quick rating: 1 = needs work, 5 = halfway, 8 = nearly ready, 10 = complete. Expand one group at a time. Skip tomorrow’s items when not needed.</p><div id="meters"></div>
     </div>
     <div class="sheet-foot">
       <button class="btn" id="allTen" type="button">All 10</button>
@@ -402,20 +423,35 @@ dialog.open .sheet { transform: none; }
 
 /* ---------- Areas. Add new ones at the END only so old codes stay valid. ---------- */
 const SLOTS = [
-  { id: 'floor',    label: 'Floor and tidiness', short: 'Floor',    group: 'Space',
-    a: { lo: 'Things on the floor, towels and shoes out of place', mid: 'A handful of things out of their spots', hi: 'Everything in its spot, shirts hung' } },
+  { id: 'floor',    label: 'Everything off the floor', short: 'Floor',    group: 'Room',
+    a: { lo: 'Floor obstructed by clothes, gear or other items', mid: 'A handful of things out of their spots', hi: 'Floor completely clear; nothing left out' } },
   { id: 'hygiene',  label: 'Hygiene',            short: 'Hygiene',  group: 'Space',
     a: { lo: 'Bathroom needs cleaning or supplies have run out', mid: 'Due for a wipe-down or a restock', hi: 'Bathroom clean, supplies stocked' } },
   { id: 'laundry',  label: 'Laundry',            short: 'Laundry',  group: 'Space',
     a: { lo: 'Behind schedule, piles building up', mid: 'Washed but not folded or put away', hi: 'On schedule (a filling basket Mon to Fri is normal)' } },
-  { id: 'vehicle',  label: 'Vehicle',            short: 'Vehicle',  group: 'Space',
+  { id: 'vehicle',  label: 'Car general condition',            short: 'Car',  group: 'Car',
     a: { lo: 'Dirty inside and out', mid: 'Inside or outside needs work', hi: 'Clean inside and out' } },
   { id: 'homework', label: 'Homework',           short: 'Homework', group: 'Tasks and habits',
     a: { lo: 'Overdue assignments', mid: 'Work due soon and not started', hi: 'Fully caught up' } },
   { id: 'business', label: 'Business follow-ups', short: 'Business', group: 'Tasks and habits',
     a: { lo: 'Follow-ups overdue', mid: 'A couple of replies pending', hi: 'No follow-ups pending' } },
   { id: 'faith',    label: 'Bible reading',      short: 'Bible',    group: 'Tasks and habits',
-    a: { lo: 'Several days missed', mid: 'Missed yesterday', hi: 'Done today, streak intact' } },
+    a: { lo: 'Several days missed', mid: 'Missed yesterday', hi: 'Today’s verse read; I have a takeaway in mind' } },
+  {"id": "swept", "label": "Floor swept and clean", "short": "Sweep", "group": "Room", "a": {"lo": "Debris or dirt throughout", "mid": "Some dust or spots remain", "hi": "Swept, surfaces clean, no debris"}},
+  {"id": "putaway", "label": "Items in their correct homes", "short": "Put away", "group": "Room", "a": {"lo": "Most items misplaced", "mid": "A few drawers, shelves or dresser items misplaced", "hi": "Every item in its assigned drawer, bookshelf or dresser"}},
+  {"id": "bedmade", "label": "Bed made", "short": "Bed", "group": "Room", "a": {"lo": "Bed unmade", "mid": "Partly straightened", "hi": "Bed fully made and tidy"}},
+  {"id": "bedding", "label": "Bedding fresh", "short": "Bedding", "group": "Room", "a": {"lo": "Bedding overdue for washing", "mid": "Wash due soon", "hi": "Bedding clean and not due for laundry"}},
+  {"id": "nightstand", "label": "Nightstand ready", "short": "Nightstand", "group": "Room", "a": {"lo": "Cluttered; essentials missing", "mid": "Neat but tomorrow\u2019s essentials incomplete", "hi": "Neat with tomorrow\u2019s essentials in place"}},
+  {"id": "smart", "label": "Automations, outlets and lights", "short": "Smart", "group": "Room", "a": {"lo": "Most systems fail", "mid": "Some outlets, lights or automations need attention", "hi": "All automations, smart outlets and lights tested and operational"}},
+  {"id": "electronics", "label": "Electronics in assigned spots", "short": "Devices", "group": "Room", "a": {"lo": "Devices scattered or missing", "mid": "Some devices not docked or stored", "hi": "Every computer, camera, charger and device in its assigned spot"}},
+  {"id": "charging", "label": "Electronics charged and queued", "short": "Charged", "group": "Tomorrow", "a": {"lo": "Devices uncharged and unprepared", "mid": "Some charging or setup remains", "hi": "Computers, cameras and batteries charged; files and tasks queued"}},
+  {"id": "camera", "label": "Camera kit ready to leave", "short": "Camera kit", "group": "Tomorrow", "a": {"lo": "Camera or essential gear missing", "mid": "Kit partly prepared", "hi": "Camera, lenses, batteries, cards and chargers checked in the bag"}},
+  {"id": "interior", "label": "Car interior", "short": "Interior", "group": "Car", "a": {"lo": "Trash, dirt or clutter throughout", "mid": "Mostly tidy, some cleaning needed", "hi": "Interior clean, organized and free of trash"}},
+  {"id": "exterior", "label": "Car exterior", "short": "Exterior", "group": "Car", "a": {"lo": "Exterior very dirty", "mid": "Some dirt or windows need cleaning", "hi": "Exterior and windows clean"}},
+  {"id": "packed", "label": "Car packed for tomorrow", "short": "Packed", "group": "Tomorrow", "a": {"lo": "Required items not packed", "mid": "Some items still missing", "hi": "All required food, clothes and equipment packed"}},
+  {"id": "food", "label": "Food and drinks packed", "short": "Food", "group": "Tomorrow", "a": {"lo": "Required food or drinks missing", "mid": "Some prep or packing remains", "hi": "Tomorrow\u2019s food and drinks prepared and packed"}},
+  {"id": "clothes", "label": "Clothes packed", "short": "Clothes", "group": "Tomorrow", "a": {"lo": "Required clothes missing", "mid": "Some items still to pack", "hi": "All required clothes, layers and footwear packed"}},
+  {"id": "equipment", "label": "Work and other equipment packed", "short": "Equipment", "group": "Tomorrow", "a": {"lo": "Required equipment missing", "mid": "Some gear not checked or packed", "hi": "All required work and other equipment checked and packed"}},
 ];
 const IN_PLACE = 8;      // score at or above this counts as "in its place"
 const STALE_HOURS = 26;  // nudge to log after this long
@@ -445,6 +481,8 @@ let pending = load(LS.pending, []);
 let entries = [];
 let draft = SLOTS.map(() => null);
 let lastVals = SLOTS.map(() => null);
+let draftNA = new Set();
+const OPTIONAL = new Set(["charging","camera","packed","food","clothes","equipment"]);
 let series = 'overall';
 let range = 30;
 let hoverI = null;
@@ -458,8 +496,9 @@ function parseEntry(raw) {
   let code = String(raw.c).replace(/\D/g, '');
   const len = Math.max(Number(raw.s) || 0, code.length);
   code = code.padStart(len, '0');
-  const vals = SLOTS.map((_, i) => i < code.length ? Number(code[i]) + 1 : null);
-  return { t: raw.t, ms, code, vals };
+  let x = raw.x || {}; if (typeof x === "string") { try { x = JSON.parse(x); } catch (_) { x = {}; } }
+  const vals = SLOTS.map((slot, i) => (x.na || []).includes(slot.id) ? null : i < code.length ? Number(code[i]) + 1 : null);
+  return { t: raw.t, ms, code, vals, x };
 }
 function rebuild() {
   const map = new Map();
@@ -471,7 +510,7 @@ function slotState(i) {
   let cur = null, prev = null;
   for (let k = entries.length - 1; k >= 0; k--) {
     const v = entries[k].vals[i];
-    if (v == null) continue;
+    if (v == null) { if(cur == null && (entries[k].x.na || []).includes(SLOTS[i].id)) return {cur:null,prev:null,delta:null}; continue; }
     if (cur == null) cur = v; else { prev = v; break; }
   }
   return { cur, prev, delta: cur != null && prev != null ? cur - prev : null };
@@ -613,6 +652,7 @@ const rowEls = SLOTS.map((s, i) => {
 });
 
 function renderList() {
+
   const before = new Map(rowEls.filter(r => r.attached).map(r => [r.li.dataset.id, r.li.getBoundingClientRect().top]));
   const info = SLOTS.map((s, i) => ({ s, i, ...slotState(i) }));
   const need = info.filter(x => x.cur == null || x.cur < IN_PLACE).sort((a, b) => (a.cur ?? 0) - (b.cur ?? 0) || a.i - b.i);
@@ -821,7 +861,7 @@ const meters = [];
 function buildMeters() {
   const host = $('#meters');
   [...new Set(SLOTS.map(s => s.group))].forEach(g => {
-    const h = document.createElement('h3'); h.className = 'mgroup'; h.textContent = g; host.append(h);
+    const groupHost = document.createElement('details'); groupHost.className = 'metric-group'; groupHost.open = g === 'Room' || matchMedia('(min-width:1000px)').matches; groupHost.innerHTML = `<summary>${g} <small>Tap to expand</small></summary>`; host.append(groupHost);
     SLOTS.forEach((s, i) => {
       if (s.group !== g) return;
       const row = document.createElement('div');
@@ -829,9 +869,12 @@ function buildMeters() {
       row.innerHTML = `<div class="mtop"><span class="mname">${s.label}</span><span class="mval">–</span></div>
         <div class="meter" role="slider" tabindex="0" aria-label="${s.label}" aria-valuemin="1" aria-valuemax="10">${'<i></i>'.repeat(10)}</div>
         <p class="mhint"></p>`;
-      host.append(row);
+      groupHost.append(row);
       const m = { row, el: row.querySelector('.meter'), val: row.querySelector('.mval'), hint: row.querySelector('.mhint'), cells: [...row.querySelectorAll('.meter i')] };
       meters[i] = m;
+      const quick = document.createElement('div'); quick.className = 'quick-rates';
+      [[1,'Needs work'],[3,'Started'],[5,'Halfway'],[8,'Nearly ready'],[10,'Done']].forEach(([v,label])=>{const b=document.createElement('button');b.type='button';b.textContent=v+' · '+label;b.setAttribute('aria-pressed','false');b.addEventListener('click',()=>setVal(i,v));quick.append(b);});row.append(quick);
+      if (OPTIONAL.has(s.id)) { const label=document.createElement('label'); label.className='na-control'; const cb=document.createElement('input');cb.type='checkbox';cb.dataset.na=s.id;label.append(cb,document.createTextNode('Not needed tomorrow'));cb.addEventListener('change',()=>{if(cb.checked){draftNA.add(s.id);setVal(i,10)}else{draftNA.delete(s.id);draft[i]=null;paintMeter(i);updateLogBtn()} paintMeter(i)});row.append(label); }
       const fromX = x => { const r = m.el.getBoundingClientRect(); return clamp(Math.ceil((x - r.left) / r.width * 10), 1, 10); };
       let down = false;
       m.el.addEventListener('pointerdown', e => {
@@ -856,12 +899,14 @@ function buildMeters() {
 }
 function paintMeter(i) {
   const m = meters[i], v = draft[i];
+  m.row.querySelectorAll(".quick-rates button").forEach(b=>b.setAttribute("aria-pressed",String(Number(b.textContent.split(" · ")[0])===v && !draftNA.has(SLOTS[i].id))));
+  const cb=m.row.querySelector("[data-na]");if(cb)cb.checked=draftNA.has(SLOTS[i].id);
   m.cells.forEach((c, k) => { c.classList.toggle('on', v != null && k < v); c.classList.toggle('last', lastVals[i] != null && k === lastVals[i] - 1); });
   m.el.style.setProperty('--c', v != null ? col(v) : 'var(--faint)');
   if (v != null) { m.el.setAttribute('aria-valuenow', v); m.el.removeAttribute('aria-valuetext'); } else { m.el.removeAttribute('aria-valuenow'); m.el.setAttribute('aria-valuetext', 'Not rated'); }
-  m.val.textContent = v ?? '–';
+  m.val.textContent = draftNA.has(SLOTS[i].id) ? 'N/A' : v ?? '–';
   m.val.style.color = v != null ? col(v) : 'var(--faint)';
-  m.hint.textContent = v == null ? 'Tap or drag to rate' : anchorFor(SLOTS[i], v);
+  m.hint.textContent = draftNA.has(SLOTS[i].id) ? 'Excluded from your score for this check-in' : v == null ? anchorFor(SLOTS[i],10) : anchorFor(SLOTS[i], v);
 }
 function setVal(i, v, opts = {}) {
   v = clamp(v, 1, 10);
@@ -880,16 +925,20 @@ function updateLogBtn() {
 }
 function openSheet(focusId, preset) {
   if (!meters.length) buildMeters();
+  draftNA = new Set();
   lastVals = SLOTS.map((_, i) => slotState(i).cur);
   draft = preset ? preset.slice() : lastVals.slice();
+  const latest = entries.at(-1);
+  if(latest && dayKey(latest.ms)===dayKey(Date.now())) draftNA=new Set(latest.x.na||[]); else if(!preset) draft[SLOTS.findIndex(s=>s.id==='faith')]=null;
+  draftNA.forEach(id=>{draft[SLOTS.findIndex(s=>s.id===id)]=10});
   SLOTS.forEach((_, i) => paintMeter(i));
   syncCode(); updateLogBtn();
   if (!sheet.open) openDialog(sheet);
   setTimeout(() => {
     if (focusId) {
       const m = meters[SLOTS.findIndex(s => s.id === focusId)];
-      m.row.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' }); m.el.focus({ preventScroll: true });
-    } else if (matchMedia('(pointer: fine)').matches) codeInput.focus();
+      m.row.closest("details").open=true; m.row.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' }); m.el.focus({ preventScroll: true });
+    } else meters[0].el.focus();
   }, 80);
 }
 codeInput.addEventListener('input', () => {
@@ -901,7 +950,7 @@ codeInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventD
 sheet.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); submit(); } });
 $('#allTen').addEventListener('click', () => { SLOTS.forEach((_, i) => setVal(i, 10)); syncCode(); });
 $('#resetLast').addEventListener('click', () => {
-  draft = lastVals.slice(); SLOTS.forEach((_, i) => paintMeter(i)); syncCode(); updateLogBtn();
+  draft = lastVals.slice(); draftNA.forEach(id=>{draft[SLOTS.findIndex(s=>s.id===id)]=10}); SLOTS.forEach((_, i) => paintMeter(i)); syncCode(); updateLogBtn();
 });
 logBtn.addEventListener('click', submit);
 $('#fab').addEventListener('click', () => openSheet());
@@ -912,10 +961,10 @@ document.addEventListener('keydown', e => {
 function submit() {
   if (!complete()) {
     const miss = draft.findIndex(v => v == null);
-    if (miss >= 0 && meters[miss]) { meters[miss].row.scrollIntoView({ block: 'center', behavior: 'smooth' }); meters[miss].el.focus({ preventScroll: true }); }
+    if (miss >= 0 && meters[miss]) { meters[miss].row.closest("details").open=true; meters[miss].row.scrollIntoView({ block: 'center', behavior: 'smooth' }); meters[miss].el.focus({ preventScroll: true }); }
     return;
   }
-  const e = { t: new Date().toISOString(), s: SLOTS.length, c: codeOf(draft) };
+  const e = { t: new Date().toISOString(), s: SLOTS.length, c: codeOf(draft), x:{na:[...draftNA]} };
   pending.push(e); save(LS.pending, pending);
   rebuild(); renderAll();
   closeDialog(sheet);
@@ -954,11 +1003,11 @@ async function sync() {
   try {
     const r = await api({ action: 'list' });
     if (!r.ok) throw new Error(r.error || 'list failed');
-    confirmed = r.rows.map(([t, s, c]) => ({ t, s: Number(s) || String(c).length, c: String(c) }));
+    confirmed = r.rows.map(([t, s, c, x]) => ({ t, s: Number(s) || String(c).length, c: String(c), x: x || {} }));
     const have = new Set(confirmed.map(e => e.t));
     pending = pending.filter(e => !have.has(e.t));
     for (const e of [...pending]) {
-      const w = await api({ action: 'add', t: e.t, schema: e.s, code: e.c });
+      const w = await api({ action: 'add', t: e.t, schema: e.s, code: e.c, notes: JSON.stringify(e.x || {}) });
       if (!w.ok) throw new Error(w.error || 'save failed');
       pending = pending.filter(x => x.t !== e.t); confirmed.push(e);
     }
