@@ -497,6 +497,7 @@ function parseEntry(raw) {
   const len = Math.max(Number(raw.s) || 0, code.length);
   code = code.padStart(len, '0');
   let x = raw.x || {}; if (typeof x === "string") { try { x = JSON.parse(x); } catch (_) { x = {}; } }
+  if (Number(raw.s) === 28 && code.length >= 28) x = {...x, na:[...OPTIONAL].filter((id,i)=>code[22+i]==='1')};
   const vals = SLOTS.map((slot, i) => (x.na || []).includes(slot.id) ? null : i < code.length ? Number(code[i]) + 1 : null);
   return { t: raw.t, ms, code, vals, x };
 }
@@ -510,7 +511,7 @@ function slotState(i) {
   let cur = null, prev = null;
   for (let k = entries.length - 1; k >= 0; k--) {
     const v = entries[k].vals[i];
-    if (v == null) { if(cur == null && (entries[k].x.na || []).includes(SLOTS[i].id)) return {cur:null,prev:null,delta:null}; continue; }
+    if (v == null) { if(cur == null && (entries[k].x.na || []).includes(SLOTS[i].id)) return {cur:null,prev:null,delta:null,na:true}; continue; }
     if (cur == null) cur = v; else { prev = v; break; }
   }
   return { cur, prev, delta: cur != null && prev != null ? cur - prev : null };
@@ -655,7 +656,7 @@ function renderList() {
 
   const before = new Map(rowEls.filter(r => r.attached).map(r => [r.li.dataset.id, r.li.getBoundingClientRect().top]));
   const info = SLOTS.map((s, i) => ({ s, i, ...slotState(i) }));
-  const need = info.filter(x => x.cur == null || x.cur < IN_PLACE).sort((a, b) => (a.cur ?? 0) - (b.cur ?? 0) || a.i - b.i);
+  const need = info.filter(x => !x.na && (x.cur == null || x.cur < IN_PLACE)).sort((a, b) => (a.cur ?? 0) - (b.cur ?? 0) || a.i - b.i);
   const ok = info.filter(x => x.cur != null && x.cur >= IN_PLACE);
 
   $('#listTitle').textContent = !entries.length ? 'Fix first' : need.length ? 'Fix first' : 'Everything is in its place';
@@ -829,7 +830,7 @@ function renderHeader() {
   t.classList.toggle('stale', stale && !!last);
   $('#fab').classList.toggle('nudge', stale);
   $('#legend').innerHTML = (last ? `Latest code <code>${last.code}</code>. ` : '') +
-    'One digit per area, 0 to 9, shown here as 1 to 10. Order: ' + SLOTS.map(s => s.short).join(', ') + '.';
+    'Scores run from 1 (needs work) to 10 (ready). Areas: ' + SLOTS.map(s => s.short).join(', ') + '.';
 }
 function renderAll() {
   renderHeader(); renderRing(); renderList(); renderChart();
@@ -929,7 +930,7 @@ function openSheet(focusId, preset) {
   lastVals = SLOTS.map((_, i) => slotState(i).cur);
   draft = preset ? preset.slice() : lastVals.slice();
   const latest = entries.at(-1);
-  if(latest && dayKey(latest.ms)===dayKey(Date.now())) draftNA=new Set(latest.x.na||[]); else if(!preset) draft[SLOTS.findIndex(s=>s.id==='faith')]=null;
+  if(latest) draftNA=new Set(latest.x.na||[]); if(!preset && (!latest || dayKey(latest.ms)!==dayKey(Date.now()))) draft[SLOTS.findIndex(s=>s.id==='faith')]=null;
   draftNA.forEach(id=>{draft[SLOTS.findIndex(s=>s.id===id)]=10});
   SLOTS.forEach((_, i) => paintMeter(i));
   syncCode(); updateLogBtn();
@@ -964,7 +965,7 @@ function submit() {
     if (miss >= 0 && meters[miss]) { meters[miss].row.closest("details").open=true; meters[miss].row.scrollIntoView({ block: 'center', behavior: 'smooth' }); meters[miss].el.focus({ preventScroll: true }); }
     return;
   }
-  const e = { t: new Date().toISOString(), s: SLOTS.length, c: codeOf(draft), x:{na:[...draftNA]} };
+  const e = { t: new Date().toISOString(), s: 28, c: codeOf(draft)+[...OPTIONAL].map(id=>draftNA.has(id)?'1':'0').join(''), x:{na:[...draftNA]} };
   pending.push(e); save(LS.pending, pending);
   rebuild(); renderAll();
   closeDialog(sheet);
