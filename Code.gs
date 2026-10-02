@@ -3,7 +3,7 @@
  *
  * Setup:
  * 1. Create a Google Sheet, then Extensions > Apps Script. Paste this file over Code.gs.
- * 2. Change SECRET below to a long random string.
+ * 2. setup() creates a private SECRET in Project Settings > Script properties.
  * 3. Run setup() once from the editor and approve the permissions.
  * 4. Deploy > New deployment > Web app.
  *      Execute as: Me
@@ -13,13 +13,15 @@
  * After you edit this file later, use Deploy > Manage deployments > Edit > New version.
  */
 
-const SECRET = 'change-this-to-a-long-random-string';
+const SECRET = PropertiesService.getScriptProperties().getProperty('SECRET');
 const SHEET_NAME = 'Log';
 const HEADERS = ['Timestamp', 'Schema', 'Code'];
 const MAX_ROWS_RETURNED = 2000;
 const DEDUPE_WINDOW = 60;
 
 function setup() {
+  const props = PropertiesService.getScriptProperties();
+  if (!props.getProperty('SECRET')) props.setProperty('SECRET', Utilities.getUuid() + Utilities.getUuid());
   getSheet_();
 }
 
