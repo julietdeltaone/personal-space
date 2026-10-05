@@ -23,7 +23,9 @@ try { document.documentElement.dataset.theme = localStorage.getItem('psd.theme')
   --mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --ease: cubic-bezier(.22, 1, .36, 1);
   --glow-h: 190;
-  transition: --glow-h 1.6s ease;
+  --ok: hsl(150 70% 45%);
+  --late: hsl(38 90% 55%);
+  --miss: hsl(8 82% 58%);
 }
 [data-theme="dark"] {
   --bg: #090b11; --bg-2: #0e1119;
@@ -61,7 +63,6 @@ body:has(dialog[open]) { overflow: hidden; }
 button { font: inherit; color: inherit; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-/* ambient light, tinted by the overall score */
 .aura { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
 .aura i { position: absolute; border-radius: 50%; opacity: var(--blob-o); will-change: transform; }
 .aura i:nth-child(1) { width: 70vmax; height: 70vmax; left: -22vmax; top: -30vmax;
@@ -77,13 +78,12 @@ button { font: inherit; color: inherit; }
 @keyframes drift2 { to { transform: translate3d(-12vmax, -8vmax, 0) scale(.92); } }
 @keyframes drift3 { to { transform: translate3d(10vmax, -12vmax, 0) scale(1.1); } }
 
-.wrap { width: min(1120px, 100%); margin: 0 auto; padding: calc(22px + env(safe-area-inset-top)) 20px calc(130px + env(safe-area-inset-bottom)); }
+.wrap { width: min(880px, 100%); margin: 0 auto; padding: calc(22px + env(safe-area-inset-top)) 20px calc(130px + env(safe-area-inset-bottom)); }
 
-/* header */
-.top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
-h1 { font-size: clamp(26px, 4vw, 34px); font-weight: 600; letter-spacing: -.03em; }
-#lastLogged { color: var(--muted); font-size: 14px; margin-top: 2px; transition: color .4s; }
-#lastLogged.stale { color: hsl(38 90% var(--score-l)); }
+.top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+h1 { font-size: clamp(26px, 4vw, 32px); font-weight: 600; letter-spacing: -.03em; }
+#todayLine { color: var(--muted); font-size: 14px; margin-top: 2px; }
+#todayLine .over { color: var(--miss); font-weight: 600; }
 .tools { display: flex; align-items: center; gap: 8px; }
 .sync, .icon {
   all: unset; box-sizing: border-box; cursor: pointer; border: 1px solid var(--line); background: var(--panel);
@@ -100,9 +100,8 @@ h1 { font-size: clamp(26px, 4vw, 34px); font-weight: 600; letter-spacing: -.03em
 .icon svg { position: absolute; width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: transform .7s var(--ease), opacity .4s; }
 [data-theme="dark"] .i-sun { opacity: 0; transform: rotate(-90deg) scale(.4); }
 [data-theme="light"] .i-moon { opacity: 0; transform: rotate(90deg) scale(.4); }
-:is(.sync, .icon, .btn, .fab, .row-btn, .seg button, .meter, .chip-ok, .seg-g):focus-visible { outline: 2px solid hsl(var(--glow-h) 80% 62%); outline-offset: 3px; }
+:is(.sync, .icon, .btn, .fab, .task):focus-visible { outline: 2px solid hsl(var(--glow-h) 80% 62%); outline-offset: 3px; }
 
-/* panels */
 .panel {
   position: relative; isolation: isolate; border: 1px solid var(--line); background: var(--panel); border-radius: 28px;
   backdrop-filter: blur(22px) saturate(1.3); -webkit-backdrop-filter: blur(22px) saturate(1.3); box-shadow: var(--shadow);
@@ -113,103 +112,62 @@ h1 { font-size: clamp(26px, 4vw, 34px); font-weight: 600; letter-spacing: -.03em
 }
 .panel:hover::before { opacity: 1; }
 
-.hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 20px; align-items: stretch; }
-@media (max-width: 880px) { .hero { grid-template-columns: 1fr; } }
+.now { padding: 22px 18px 16px; }
+.now h2 { font-size: 21px; font-weight: 600; letter-spacing: -.02em; padding: 0 6px; }
+.now .sub { color: var(--muted); font-size: 14px; margin: 2px 6px 0; }
+.sec-head { margin: 18px 6px 8px; font-size: 12.5px; font-weight: 650; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.sec-head .n { font-family: var(--mono); font-size: 11px; border: 1px solid var(--line-2); border-radius: 99px; padding: 1px 8px; }
+.sec-head.overdue { color: var(--miss); }
 
-/* ring */
-.ring-panel { padding: 14px; display: grid; place-items: center; }
-.ring-wrap { position: relative; width: min(100%, 520px); container-type: inline-size; }
-.halo {
-  position: absolute; inset: 14%; border-radius: 50%; filter: blur(40px); opacity: .5; pointer-events: none;
-  background: radial-gradient(closest-side, hsl(var(--glow-h) 85% 50% / .55), transparent);
-  animation: breathe 7s ease-in-out infinite;
+.task {
+  all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 14px; width: 100%;
+  min-height: 64px; padding: 13px 14px; border-radius: 18px; cursor: pointer; text-align: left;
+  border: 1px solid transparent; transition: background .25s, border-color .25s, opacity .3s;
 }
-.ring-wrap.perfect .halo { opacity: .95; animation-duration: 3.6s; }
-@keyframes breathe { 50% { transform: scale(1.1); opacity: .75; } }
-.ring { position: relative; display: block; width: 100%; height: auto; overflow: visible; }
-.orbit { fill: none; stroke: var(--line-2); stroke-width: 1.2; stroke-dasharray: 1 9; stroke-linecap: round; transform-origin: 0 0; animation: spin 140s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.track, .fill, .hit { fill: none; stroke-linecap: round; }
-.track { stroke: var(--track); stroke-width: 12; }
-.fill { stroke-width: 12; stroke-dasharray: 0 100; opacity: 0; transition: stroke-dasharray 1.2s var(--ease), stroke .7s, opacity .35s; filter: drop-shadow(0 0 7px var(--seg, transparent)); }
-.hit { stroke: transparent; stroke-width: 38; cursor: pointer; }
-.seg-g { outline: none; transition: opacity .35s; }
-.ring.hov .seg-g:not(.on) { opacity: .32; }
-.ring text { font-family: var(--font); font-size: 13px; font-weight: 520; fill: var(--muted); transition: fill .3s; pointer-events: none; }
-.seg-g.on text { fill: var(--text); }
-.center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none; padding: 0 24%; }
-.big { font-size: clamp(44px, 17cqw, 92px); font-weight: 600; letter-spacing: -.045em; line-height: 1; font-variant-numeric: tabular-nums; transition: color .8s; text-shadow: 0 0 40px color-mix(in srgb, currentColor 38%, transparent); }
-.cap { margin-top: 8px; font-size: clamp(13px, 3.4cqw, 16px); font-weight: 520; }
-.sub { margin-top: 4px; color: var(--muted); font-size: clamp(11px, 2.7cqw, 13px); line-height: 1.35; min-height: 2.7em; }
+.task:hover { background: var(--panel-hi); }
+.task:active { transform: scale(.995); }
+.task .tick {
+  flex: none; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--line-2);
+  display: grid; place-items: center; transition: background .3s, border-color .3s;
+}
+.task .tick svg { width: 15px; height: 15px; fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; opacity: 0; transform: scale(.5); transition: opacity .25s, transform .3s var(--ease); }
+.task.done .tick { background: var(--ok); border-color: transparent; }
+.task.done .tick svg { opacity: 1; transform: none; }
+.task.done .tname { text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.task .tmain { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.task .tname { font-weight: 600; font-size: 16px; }
+.task .tdetail { color: var(--muted); font-size: 13px; margin-top: 1px; }
+.task .tright { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.badge { font-size: 12px; font-weight: 650; padding: 4px 11px; border-radius: 99px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.badge.up { color: var(--muted); background: var(--track); }
+.badge.soon { color: hsl(38 95% 60%); background: hsl(38 90% 50% / .14); }
+.badge.over { color: #fff; background: var(--miss); }
+.badge.did { color: hsl(150 70% 62%); background: hsl(150 70% 45% / .13); }
+.badge.waslate { color: hsl(38 95% 62%); background: hsl(38 90% 50% / .14); }
+.streak { font-family: var(--mono); font-size: 11.5px; color: var(--faint); }
+.streak.hot { color: hsl(38 95% 60%); }
+.task.doneitem { opacity: .62; }
+.taskrow + .taskrow { margin-top: 4px; }
+.alldone { padding: 26px 10px; text-align: center; color: var(--muted); font-size: 15px; }
+.alldone b { color: var(--text); }
 
-/* fix first */
-.list-panel { padding: 26px 24px 22px; display: flex; flex-direction: column; }
-.list-panel h2 { font-size: 21px; font-weight: 600; letter-spacing: -.02em; }
-.list-sub { color: var(--muted); font-size: 14px; margin-top: 2px; }
-.rows { list-style: none; padding: 0; display: grid; gap: 4px; margin-top: 16px; }
-.rows li.enter { animation: rowIn .7s var(--ease) backwards; animation-delay: calc(var(--i) * 70ms + 900ms); }
-@keyframes rowIn { from { opacity: 0; transform: translateX(14px); } }
-.row-btn { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 8px 12px; width: 100%; padding: 12px 14px; border-radius: 16px; cursor: pointer; transition: background .3s; }
-.row-btn:hover { background: var(--panel-hi); }
-.row-name { font-weight: 550; }
-.delta { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 99px; font-size: 12px; font-weight: 550; vertical-align: 1px; background: color-mix(in srgb, currentColor 15%, transparent); }
-.delta.up { color: hsl(150 62% var(--score-l)); }
-.delta.down { color: hsl(8 80% var(--score-l)); }
-.row-score { font-size: 19px; font-weight: 620; font-variant-numeric: tabular-nums; transition: color .6s; }
-.bar { grid-column: 1 / -1; height: 6px; border-radius: 99px; background: var(--track); overflow: hidden; }
-.bar i { display: block; height: 100%; width: 0; border-radius: inherit; transition: width 1s var(--ease), background-color .7s; }
-.row-hint { grid-column: 1 / -1; color: var(--muted); font-size: 13px; }
-.inplace { margin-top: auto; padding-top: 18px; }
-.inplace h3 { font-size: 13px; font-weight: 550; color: var(--muted); margin-bottom: 10px; }
-.chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.chip-ok { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 99px; border: 1px solid var(--line); font-size: 13px; color: var(--muted); transition: background .3s, border-color .3s, color .3s; animation: chipIn .6s var(--ease) backwards; animation-delay: calc(var(--i) * 40ms); }
-.chip-ok:hover { background: var(--panel-hi); border-color: var(--line-2); color: var(--text); }
-.chip-ok svg { width: 14px; height: 14px; fill: none; stroke: hsl(150 62% var(--score-l)); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-@keyframes chipIn { from { opacity: 0; transform: scale(.85); } }
-.empty { color: var(--muted); font-size: 14px; padding: 18px 14px; }
+.week { margin-top: 20px; padding: 22px 20px 18px; }
+.week h2 { font-size: 21px; font-weight: 600; letter-spacing: -.02em; }
+.week .sub { color: var(--muted); font-size: 14px; margin-top: 2px; }
+.wgrid { display: grid; grid-template-columns: 92px repeat(7, 1fr); gap: 7px 2px; align-items: center; margin-top: 16px; }
+.wgrid .dlab { font-size: 10.5px; color: var(--faint); text-align: center; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.wgrid .dlab.today { color: var(--text); }
+.wgrid .rlab { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; }
+.wdot { width: 15px; height: 15px; border-radius: 50%; margin: 0 auto; display: block; }
+.wdot.ontime, .wdot.done { background: var(--ok); box-shadow: 0 0 8px hsl(150 70% 45% / .5); }
+.wdot.late { background: var(--late); }
+.wdot.missed { background: var(--miss); }
+.wdot.upcoming { border: 1.5px solid var(--line-2); }
+.wdot.off { visibility: hidden; }
+.wsum { margin-top: 16px; color: var(--muted); font-size: 13.5px; }
+.wsum b { color: var(--text); font-variant-numeric: tabular-nums; }
+@media (max-width: 520px) { .wgrid { grid-template-columns: 64px repeat(7, 1fr); } .wgrid .rlab { font-size: 11px; } }
 
-/* trend */
-.trend { margin-top: 20px; padding: 24px 24px 22px; }
-.trend-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; }
-.trend h2 { font-size: 21px; font-weight: 600; letter-spacing: -.02em; }
-.seg { position: relative; display: inline-flex; gap: 2px; padding: 4px; border-radius: 99px; background: var(--track); overflow-x: auto; max-width: 100%; scrollbar-width: none; }
-.seg::-webkit-scrollbar { display: none; }
-.seg button { all: unset; box-sizing: border-box; position: relative; z-index: 1; padding: 7px 14px; border-radius: 99px; font-size: 13px; font-weight: 520; color: var(--muted); cursor: pointer; white-space: nowrap; transition: color .35s; }
-.seg button[aria-pressed="true"] { color: var(--bg); }
-.seg .pill { position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 0; border-radius: 99px; background: var(--text); transition: transform .55s var(--ease), width .55s var(--ease); }
-.series { margin-top: 14px; }
-.chart-wrap { position: relative; margin-top: 18px; touch-action: pan-y; }
-.chart { display: block; width: 100%; height: auto; overflow: visible; }
-.chart text { fill: var(--faint); font-size: 11px; font-family: var(--font); }
-.chart .ln { fill: none; stroke: url(#lg); stroke-width: 2.8; stroke-linecap: round; stroke-linejoin: round; }
-.chart .ar { fill: url(#lg); fill-opacity: .13; stroke: none; }
-.chart .play .ln { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1.5s var(--ease) forwards; }
-.chart .play .ar { animation: fadeIn 1.2s .5s backwards; }
-.chart .play .dt { animation: fadeIn .6s 1.1s backwards; }
-@keyframes draw { to { stroke-dashoffset: 0; } }
-@keyframes fadeIn { from { opacity: 0; } }
-.chart .dt { fill: var(--bg-2); stroke-width: 2; }
-.chart .pulse { fill: none; stroke-width: 1.5; transform-box: fill-box; transform-origin: center; animation: pulse 2.6s ease-out infinite; }
-@keyframes pulse { from { transform: scale(1); opacity: .8; } to { transform: scale(3.4); opacity: 0; } }
-.chart .xh { stroke: var(--line-2); stroke-width: 1; opacity: 0; transition: opacity .2s; }
-.chart .fh { fill: var(--bg-2); stroke-width: 2.5; opacity: 0; transition: opacity .2s; }
-.tip { position: absolute; z-index: 3; left: 0; top: 0; padding: 8px 12px; border-radius: 12px; font-size: 12px; white-space: nowrap; pointer-events: none; opacity: 0; transform: translate(-50%, -135%); transition: opacity .2s, left .12s linear, top .12s linear; background: var(--sheet-bg); border: 1px solid var(--line-2); box-shadow: var(--shadow); }
-.tip b { display: block; font-size: 15px; font-weight: 620; }
-.tip span { color: var(--muted); }
-.heat-wrap { margin-top: 20px; }
-.heat-wrap p { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
-.heat { display: grid; grid-template-columns: repeat(28, 1fr); gap: 4px; }
-@media (max-width: 560px) { .heat { grid-template-columns: repeat(14, 1fr); } }
-.heat i { aspect-ratio: 1; border-radius: 6px; border: 1px dashed var(--line-2); }
-.heat i.has { border: 0; opacity: .88; }
-.heat i.today { outline: 2px solid var(--text); outline-offset: 1px; }
-.heat.play i { animation: cellIn .6s var(--ease) backwards; animation-delay: calc(var(--i) * 16ms); }
-@keyframes cellIn { from { opacity: 0; transform: scale(.4); } }
-.stat { margin-top: 16px; color: var(--muted); font-size: 14px; }
-.legend { margin-top: 22px; color: var(--faint); font-size: 12.5px; line-height: 1.6; }
-.legend code { font-family: var(--mono); color: var(--muted); letter-spacing: .08em; }
-
-/* floating action */
 .fab {
   all: unset; box-sizing: border-box; position: fixed; z-index: 20; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom));
   transform: translateX(-50%); display: inline-flex; align-items: center; gap: 10px; padding: 0 26px 0 20px; height: 56px; border-radius: 99px; cursor: pointer;
@@ -219,12 +177,10 @@ h1 { font-size: clamp(26px, 4vw, 34px); font-weight: 600; letter-spacing: -.03em
 }
 .fab:hover { transform: translateX(-50%) translateY(-3px); }
 .fab:active { transform: translateX(-50%) scale(.96); }
-.fab svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; transition: transform .5s var(--ease); }
-.fab:hover svg { transform: rotate(90deg); }
+.fab svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .fab.nudge::after { content: ""; position: absolute; inset: 0; border-radius: inherit; border: 2px solid hsl(var(--glow-h) 85% 60%); animation: ring 2.4s ease-out infinite; pointer-events: none; }
 @keyframes ring { from { transform: scale(1); opacity: .9; } to { transform: scale(1.35, 1.7); opacity: 0; } }
 
-/* dialogs */
 dialog { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; border: 0; padding: 0; background: transparent; color: var(--text); overflow: hidden; }
 dialog[open] { display: flex; align-items: flex-end; justify-content: center; }
 dialog::backdrop { background: rgba(4,6,12,.55); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); opacity: 0; transition: opacity .4s; }
@@ -241,35 +197,28 @@ dialog.open .sheet { transform: none; }
 @media (min-width: 720px) { .grab { display: none; } }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; }
 .sheet-head h2 { font-size: 21px; font-weight: 600; letter-spacing: -.02em; }
-.codebox { display: grid; gap: 6px; margin: 16px 0 6px; }
-.codebox span { font-size: 13px; color: var(--muted); }
-.codebox input { all: unset; box-sizing: border-box; width: 100%; padding: 12px 16px; border-radius: 14px; background: var(--track); border: 1px solid transparent; font-family: var(--mono); font-size: 22px; letter-spacing: .5em; transition: border-color .3s, background .3s; }
-.codebox input::placeholder { color: var(--faint); letter-spacing: .04em; font-size: 15px; font-family: var(--font); }
-.codebox input:focus { border-color: hsl(var(--glow-h) 80% 60%); background: var(--panel); }
-.mgroup { margin: 20px 0 4px; font-size: 13px; font-weight: 550; color: var(--muted); }
-.mrow { padding: 8px 0 10px; }
-.mtop { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 9px; }
-.mname { font-weight: 550; }
-.mval { font-size: 20px; font-weight: 620; font-variant-numeric: tabular-nums; display: inline-block; transition: color .3s; }
-.meter { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; height: 40px; touch-action: pan-y; cursor: pointer; outline: none; user-select: none; -webkit-user-select: none; --c: var(--faint); }
-.meter i { display:grid;place-items:center;font-style:normal;font-size:12px;color:var(--text);position: relative; border-radius: 8px; background: var(--track); transition: background-color .25s, box-shadow .3s; }
-.meter i.on {color:var(--bg);background: var(--c); box-shadow: 0 0 18px -5px var(--c); }
-.meter i.last::after { content: ""; position: absolute; left: 50%; bottom: -9px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--muted); }
-.mhint { margin-top: 6px; color: var(--muted); font-size: 13px; min-height: 1.4em; }
-.sheet-foot { position: sticky; bottom: 0; display: flex; gap: 10px; padding: 16px 22px calc(16px + env(safe-area-inset-bottom)); background: linear-gradient(to top, var(--sheet-bg) 72%, transparent); }
+.sheet-foot { position: sticky; bottom: 0; display: flex; gap: 10px; align-items: center; padding: 16px 22px calc(16px + env(safe-area-inset-bottom)); background: linear-gradient(to top, var(--sheet-bg) 72%, transparent); }
 .btn { all: unset; box-sizing: border-box; cursor: pointer; text-align: center; padding: 14px 18px; border-radius: 16px; font-weight: 560; font-size: 15px; border: 1px solid var(--line-2); transition: background .3s, opacity .3s, transform .3s var(--ease); }
 .btn:hover { background: var(--panel-hi); }
 .btn:active { transform: scale(.97); }
 .btn.primary { flex: 1; background: var(--text); color: var(--bg); border-color: transparent; font-weight: 620; }
 .btn.primary:hover { background: var(--text); opacity: .9; }
-.btn[aria-disabled="true"] { opacity: .35; cursor: not-allowed; }
+.btn[aria-disabled="true"], .btn:disabled { opacity: .35; cursor: not-allowed; }
 .connect { padding: 26px 22px calc(24px + env(safe-area-inset-bottom)); display: grid; gap: 14px; }
 .connect p { color: var(--muted); font-size: 14px; }
-.field { display: grid; gap: 6px; }
-.field span { font-size: 13px; color: var(--muted); }
-.field input { all: unset; box-sizing: border-box; width: 100%; padding: 12px 14px; border-radius: 14px; background: var(--track); border: 1px solid transparent; font-size: 15px; transition: border-color .3s; }
-.field input:focus { border-color: hsl(var(--glow-h) 80% 60%); }
 .btn-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.field { display: grid; gap: 6px; margin: 14px 0; }
+.field span { font-size: 13px; color: var(--muted); }
+.field textarea { width: 100%; font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; resize: vertical; }
+.field textarea:focus { border-color: hsl(var(--glow-h) 80% 60%); outline: none; }
+.vlist { list-style: none; padding: 0; margin: 6px 0 10px; display: grid; gap: 6px; }
+.vlist li { display: flex; justify-content: space-between; gap: 10px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; font-size: 14px; }
+.vlist li b { font-weight: 650; }
+.vlist li b.ok { color: var(--ok); }
+.vlist li b.undo { color: var(--late); }
+.legend { color: var(--faint); font-size: 12.5px; line-height: 1.6; margin: 10px 0; }
+#voiceStatus { min-height: 1.4em; }
+#voiceSync { flex: 1; font-size: 13px; color: var(--muted); }
 
 .toast { position: fixed; z-index: 40; left: 50%; bottom: calc(92px + env(safe-area-inset-bottom)); transform: translate(-50%, 24px); opacity: 0; padding: 12px 18px; border-radius: 99px; font-size: 14px; font-weight: 520; background: var(--sheet-bg); border: 1px solid var(--line-2); box-shadow: var(--shadow); pointer-events: none; transition: transform .6s var(--ease), opacity .4s; max-width: calc(100vw - 32px); text-align: center; }
 .toast.show { transform: translate(-50%, 0); opacity: 1; }
@@ -281,19 +230,6 @@ dialog.open .sheet { transform: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; transition-delay: 0ms !important; }
 }
-
-.metric-group {border:1px solid var(--line);border-radius:18px;padding:14px;margin:12px 0;background:var(--panel)}
-.metric-group summary {cursor:pointer;font-weight:650;min-height:44px;display:flex;align-items:center;justify-content:space-between}
-.metric-group summary small {font-weight:400;color:var(--muted)}
-.na-control {display:flex;gap:10px;align-items:center;min-height:44px;color:var(--muted)}
-.seg-g text {display:none}
-.seg.series {flex-wrap:wrap;overflow:visible;max-width:100%}
-.codebox {display:none}
-@media(min-width:1000px){.wrap {width:100%;max-width:none;padding-left:32px;padding-right:32px}.sheet {width:96vw;max-width:none;max-height:94dvh}#meters {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}.metric-group{margin:0}.sheet-pad{padding:24px}.sheet-foot{padding:18px 24px}}
-#inputSync{align-self:center;font-size:13px;color:var(--muted);flex:1}.sheet-foot .btn.primary{flex:0;padding:12px 20px}
-@media(max-width:600px){.sheet{width:100vw;max-height:96dvh}.sheet-pad{padding:16px}.metric-group{padding:12px}.meter{min-height:44px}.sheet-foot{position:sticky;bottom:0;background:var(--sheet-bg);padding-bottom:calc(16px + env(safe-area-inset-bottom))}}
-
-.voice-entry{margin:14px 0}.voice-entry summary{cursor:pointer;font-weight:600;padding:8px 0}.voice-entry textarea{width:100%;font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px}.voice-entry ul{padding-left:20px;margin:10px 0}
 </style>
 </head>
 <body>
@@ -303,7 +239,7 @@ dialog.open .sheet { transform: none; }
   <header class="top">
     <div>
       <h1>Personal space</h1>
-      <p id="lastLogged">Loading</p>
+      <p id="todayLine">Loading</p>
     </div>
     <div class="tools">
       <button class="sync" id="syncBtn" data-state="local" aria-label="Sheet sync status"><span class="dot"></span><span id="syncText">Local only</span></button>
@@ -314,57 +250,23 @@ dialog.open .sheet { transform: none; }
     </div>
   </header>
 
-  <section class="hero">
-    <div class="panel ring-panel">
-      <div class="ring-wrap" id="ringWrap">
-        <div class="halo" aria-hidden="true"></div>
-        <svg class="ring" id="ring" viewBox="-250 -250 500 500" role="group" aria-label="Score by area"></svg>
-        <div class="center">
-          <div class="big" id="bigNum">–</div>
-          <div class="cap" id="bigCap">overall</div>
-          <div class="sub" id="bigSub"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="panel list-panel">
-      <h2 id="listTitle">Fix first</h2>
-      <p class="list-sub" id="listSub"></p>
-      <ul class="rows" id="rows"></ul>
-      <div class="inplace" id="inplace" hidden>
-        <h3>In place</h3>
-        <div class="chips" id="chips"></div>
-      </div>
-    </div>
+  <section class="panel now" aria-label="Tonight's routine">
+    <h2 id="nowTitle">Now</h2>
+    <p class="sub" id="nowSub"></p>
+    <div id="nowList"></div>
   </section>
 
-  <section class="panel trend">
-    <div class="trend-head">
-      <h2>Trend</h2>
-      <div class="seg" id="rangeSeg" role="group" aria-label="Range">
-        <span class="pill"></span>
-        <button type="button" data-v="14" aria-pressed="false">2 weeks</button>
-        <button type="button" data-v="30" aria-pressed="true">30 days</button>
-        <button type="button" data-v="90" aria-pressed="false">90 days</button>
-      </div>
-    </div>
-    <div class="seg series" id="seriesSeg" role="group" aria-label="Area"><span class="pill"></span></div>
-    <div class="chart-wrap" id="chartWrap">
-      <svg class="chart" id="chart" viewBox="0 0 720 240" role="img" aria-label="Score trend"></svg>
-      <div class="tip" id="tip"></div>
-    </div>
-    <div class="heat-wrap">
-      <p>Last 28 days</p>
-      <div class="heat" id="heat"></div>
-    </div>
-    <p class="stat" id="statLine"></p>
-    <p class="legend" id="legend"></p>
+  <section class="panel week" aria-label="This week">
+    <h2>Week</h2>
+    <p class="sub">Seven days at a glance. Dots show each day's outcome per item.</p>
+    <div class="wgrid" id="weekGrid"></div>
+    <p class="wsum" id="weekSum"></p>
   </section>
   <p class="sr" id="srSummary" aria-live="polite"></p>
 </main>
 
-<button class="fab" id="fab" aria-label="Log update">
-  <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>Log update</span>
+<button class="fab" id="fab" aria-label="Voice update">
+  <svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></svg><span>Voice update</span>
 </button>
 
 <dialog id="sheet" aria-labelledby="sheetTitle">
@@ -372,23 +274,18 @@ dialog.open .sheet { transform: none; }
     <div class="sheet-pad">
       <div class="grab"></div>
       <div class="sheet-head">
-        <h2 id="sheetTitle">Log update</h2>
+        <h2 id="sheetTitle">Voice update</h2>
         <button class="icon" id="closeSheet" aria-label="Close"><svg viewBox="0 0 24 24" style="position:static"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
-      <details class="voice-entry"><summary>Voice update</summary>
-<p class="legend">Say “floor nine, bed ten, car interior seven.” Review the ratings, then save. Your browser may use its speech service.</p>
-<label class="field"><span>Spoken or typed ratings</span><textarea id="voiceText" rows="2" placeholder="Floor 9, bed 10, car interior 7"></textarea></label>
-<div class="btn-row"><button class="btn" id="voiceStart" type="button">Speak ratings</button><button class="btn primary" id="voiceApply" type="button" disabled>Save ratings</button></div>
-<ul id="voicePreview"></ul><p class="legend" id="voiceStatus" role="status" aria-live="polite">You can also use your keyboard’s microphone.</p></details>
-<label class="codebox"><span>Quick code</span>
-        <input id="codeInput" inputmode="numeric" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Type digits or tap the bars below">
-      </label>
-      <p class="legend">Tap a number to score. Tap the selected number again to clear. Changes save automatically; the indicator confirms when they reach the Sheet.</p><div id="meters"></div>
+      <p class="legend">Say things like &ldquo;water bottle done&rdquo;, &ldquo;laundry is all set for the week&rdquo;, or &ldquo;undo car charging&rdquo;. Review what was heard, then save. Your browser may use its speech service.</p>
+      <label class="field"><span>Spoken or typed update</span><textarea id="voiceText" rows="2" placeholder="Water bottle done, car charging done"></textarea></label>
+      <div class="btn-row"><button class="btn" id="voiceStart" type="button">Speak update</button><button class="btn primary" id="voiceApply" type="button" disabled>Save update</button></div>
+      <ul class="vlist" id="voicePreview"></ul>
+      <p class="legend" id="voiceStatus" role="status" aria-live="polite">You can also use your keyboard&rsquo;s microphone.</p>
     </div>
     <div class="sheet-foot">
-      <button class="btn" id="allTen" type="button">All 10</button>
-      <button class="btn" id="resetLast" type="button">Restore previous</button>
-      <span id="inputSync" role="status" aria-live="polite"></span><button class="btn primary" id="logBtn" type="button">Done</button>
+      <span id="voiceSync" role="status" aria-live="polite"></span>
+      <button class="btn primary" id="logBtn" type="button">Done</button>
     </div>
   </div>
 </dialog>
@@ -412,85 +309,88 @@ dialog.open .sheet { transform: none; }
 <div class="toast" id="toast" role="status"></div>
 
 <script>
-/* Shared score parser: browser voice, typed commands, and future AI clients. */
+/* Voice parser for routine items: "<item> done" or "undo <item>". Shared by the
+   dashboard and any authorized client. Never invents updates; unknown clauses
+   come back as warnings. */
 (function(root) {
 'use strict';
-const aliases = {
- floor:['floor','everything off the floor','off the floor'], hygiene:['hygiene'], laundry:['laundry'],
- vehicle:['car','vehicle','car general'], homework:['homework'], business:['business'], faith:['bible','bible reading','faith'],
- swept:['swept','sweep','floor swept','floor cleanliness'], putaway:['put away','items put away'], bedmade:['bed','bed made'],
- bedding:['bedding','bedding fresh'], nightstand:['nightstand'], smart:['smart','automations','smart outlets','lights'],
- electronics:['electronics','devices'], charging:['charging','charged','electronics charged'], camera:['camera','camera kit'],
- interior:['car interior','interior'], exterior:['car exterior','exterior'], packed:['car packed','packed'], food:['food','food and drinks'],
- clothes:['clothes'], equipment:['equipment','work equipment']
+var LAUNDRY_ALL = [4, 5, 6];
+var aliases = {
+  1: ['water bottle', 'water bottles', 'water', 'bottle'],
+  2: ['energy drinks', 'energy drink', 'drinks', 'drink', 'snacks', 'snack'],
+  3: ['car charging', 'charge the car', 'plug in the car', 'car charger', 'charging', 'car'],
+  4: ['laundry started', 'start laundry', 'started laundry', 'start the laundry'],
+  5: ['laundry washed', 'laundry dried', 'washer done', 'dryer done'],
+  6: ['laundry folded', 'fold laundry', 'folded laundry', 'put laundry away', 'put away laundry', 'laundry put away'],
+  7: ['bible reading', 'takeaway', 'devotional', 'verse', 'bible']
 };
-const optional = new Set(['charging','camera','packed','food','clothes','equipment']);
-const words = {one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10};
-const names = Object.entries(aliases).flatMap(([id,list])=>list.map(name=>({id,name}))).sort((a,b)=>b.name.length-a.name.length);
-function parse(text) {
- const updates = new Map(), warnings=[];
- const clauses=String(text).toLowerCase().replace(/[.!?]/g,',').split(/[,;\n]|\band\b(?!\s+drinks)/).map(t=>t.trim()).filter(Boolean);
- for (let clause of clauses) {
-  const original=clause;
-  clause=clause.replace(/^(?:please\s+)?(?:set|rate|score|mark)\s+(?:my\s+|the\s+)?/,'').replace(/^(?:my|the)\s+/,'');
-  const clear = /^(?:clear|reset|remove)\s+/.test(clause);
-  if(clear) clause=clause.replace(/^(?:clear|reset|remove)\s+(?:my\s+|the\s+)?/,'');
-  const match=names.find(x=>clause===x.name||clause.startsWith(x.name+' '));
-  if(!match) {warnings.push('Not recognized: '+original);continue;}
-  let value=clause.slice(match.name.length).trim().replace(/^(?:score\s+)?(?:is|to|at|equals)\s+/,'').replace(/^a\s+/,'').replace(/\s+(?:out of|of)\s+(?:10|ten)$/,'').trim();
-  if(clear && !value || /^(?:clear|reset|unrated)$/.test(value)) {updates.set(match.id,{id:match.id,value:null,na:false});continue;}
-  if(/^(?:not applicable|not needed|n\/?a)$/.test(value)) {
-   if(optional.has(match.id)) updates.set(match.id,{id:match.id,value:10,na:true});
-   else warnings.push('N/A is not available for '+match.name);
-   continue;
-  }
-  const rating=Object.hasOwn(words,value)?words[value]:/^\d+$/.test(value)?Number(value):NaN;
-  if(!Number.isInteger(rating)||rating<1||rating>10) {warnings.push('Use a score from 1 to 10: '+original);continue;}
-  updates.set(match.id,{id:match.id,value:rating,na:false});
- }
- return {updates:Array.from(updates.values()),warnings:warnings};
-}
-root.PersonalSpaceVoice={parse:parse};
-if(typeof module!=='undefined')module.exports=root.PersonalSpaceVoice;
-})(typeof window!=='undefined'?window:globalThis);
+var names = [];
+Object.keys(aliases).forEach(function(id) {
+  aliases[id].forEach(function(name) { names.push({ id: Number(id), name: name }); });
+});
+names.sort(function(a, b) { return b.name.length - a.name.length; });
+var stageNames = names.filter(function(x) { return x.id >= 4 && x.id <= 6; });
 
+function atWord(hay, name) {
+  return hay === name || hay.indexOf(name + ' ') === 0 || hay.slice(-(name.length + 1)) === ' ' + name;
+}
+function parse(text) {
+  var updates = {}, warnings = [];
+  var clauses = String(text).toLowerCase().replace(/[.!?]/g, ',').split(/[,;\n]|\band\b/)
+    .map(function(t) { return t.trim(); }).filter(Boolean);
+  clauses.forEach(function(original) {
+    var clause = original
+      .replace(/^(?:please\s+)?(?:mark|set|log|update)\s+(?:my\s+|the\s+)?/, '')
+      .replace(/^(?:my|the)\s+/, '');
+    var undo = /^(?:undo|clear|reset|remove|unmark|uncheck)(?:\s|$)/.test(clause);
+    if (undo) clause = clause.replace(/^(?:undo|clear|reset|remove|unmark|uncheck)\s*(?:my\s+|the\s+)?/, '');
+    function set(id, done) { updates[id] = { id: id, done: done }; }
+
+    if (/\blaundry\b/.test(clause)) {
+      var stage = null;
+      for (var i = 0; i < stageNames.length; i++) { if (atWord(clause, stageNames[i].name)) { stage = stageNames[i]; break; } }
+      if (stage) { set(stage.id, !undo); return; }
+      if (undo) { LAUNDRY_ALL.forEach(function(id) { set(id, false); }); return; }
+      if (/all set|all done|\bdone\b|finished|complete|ready/.test(clause)) {
+        LAUNDRY_ALL.forEach(function(id) { set(id, true); }); return;
+      }
+      if (clause.replace(/laundry/g, ' ').trim() === '') {
+        LAUNDRY_ALL.forEach(function(id) { set(id, true); }); return;
+      }
+      warnings.push('Say which laundry stage: started, washed, or folded. Heard: ' + original);
+      return;
+    }
+    var m = null;
+    for (var j = 0; j < names.length; j++) { if (atWord(clause, names[j].name)) { m = names[j]; break; } }
+    if (!m) { warnings.push('Not recognized: ' + original); return; }
+    var tail = clause.split(m.name).join(' ').replace(/\s+/g, ' ').trim();
+    if (tail === '' || /\bdone\b|finished|complete|ready|\bset\b/.test(tail)) { set(m.id, !undo); return; }
+    if (/not done|isn't done|never/.test(tail)) { set(m.id, false); return; }
+    warnings.push('Say done or undo for: ' + original);
+  });
+  return { updates: Object.keys(updates).map(function(k) { return updates[k]; }), warnings: warnings };
+}
+root.PersonalSpaceVoice = { parse: parse, aliases: aliases };
+if (typeof module !== 'undefined') module.exports = root.PersonalSpaceVoice;
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+
+<script>
 (() => {
 'use strict';
 
-/* ---------- Areas. Add new ones at the END only so old codes stay valid. ---------- */
-const SLOTS = [
-  { id: 'floor',    label: 'Everything off the floor', short: 'Floor',    group: 'Room',
-    a: { lo: 'Floor obstructed by clothes, gear or other items', mid: 'A handful of things out of their spots', hi: 'Floor completely clear; nothing left out' } },
-  { id: 'hygiene',  label: 'Hygiene',            short: 'Hygiene',  group: 'Space',
-    a: { lo: 'Bathroom needs cleaning or supplies have run out', mid: 'Due for a wipe-down or a restock', hi: 'Bathroom clean, supplies stocked' } },
-  { id: 'laundry',  label: 'Laundry',            short: 'Laundry',  group: 'Space',
-    a: { lo: 'Behind schedule, piles building up', mid: 'Washed but not folded or put away', hi: 'On schedule (a filling basket Mon to Fri is normal)' } },
-  { id: 'vehicle',  label: 'Car general condition',            short: 'Car',  group: 'Car',
-    a: { lo: 'Dirty inside and out', mid: 'Inside or outside needs work', hi: 'Clean inside and out' } },
-  { id: 'homework', label: 'Homework',           short: 'Homework', group: 'Tasks and habits',
-    a: { lo: 'Overdue assignments', mid: 'Work due soon and not started', hi: 'Fully caught up' } },
-  { id: 'business', label: 'Business follow-ups', short: 'Business', group: 'Tasks and habits',
-    a: { lo: 'Follow-ups overdue', mid: 'A couple of replies pending', hi: 'No follow-ups pending' } },
-  { id: 'faith',    label: 'Bible reading',      short: 'Bible',    group: 'Tasks and habits',
-    a: { lo: 'Several days missed', mid: 'Missed yesterday', hi: 'Today’s verse read; I have a takeaway in mind' } },
-  {"id": "swept", "label": "Floor swept and clean", "short": "Sweep", "group": "Room", "a": {"lo": "Debris or dirt throughout", "mid": "Some dust or spots remain", "hi": "Swept, surfaces clean, no debris"}},
-  {"id": "putaway", "label": "Items in their correct homes", "short": "Put away", "group": "Room", "a": {"lo": "Most items misplaced", "mid": "A few drawers, shelves or dresser items misplaced", "hi": "Every item in its assigned drawer, bookshelf or dresser"}},
-  {"id": "bedmade", "label": "Bed made", "short": "Bed", "group": "Room", "a": {"lo": "Bed unmade", "mid": "Partly straightened", "hi": "Bed fully made and tidy"}},
-  {"id": "bedding", "label": "Bedding fresh", "short": "Bedding", "group": "Room", "a": {"lo": "Bedding overdue for washing", "mid": "Wash due soon", "hi": "Bedding clean and not due for laundry"}},
-  {"id": "nightstand", "label": "Nightstand ready", "short": "Nightstand", "group": "Room", "a": {"lo": "Cluttered; essentials missing", "mid": "Neat but tomorrow\u2019s essentials incomplete", "hi": "Neat with tomorrow\u2019s essentials in place"}},
-  {"id": "smart", "label": "Automations, outlets and lights", "short": "Smart", "group": "Room", "a": {"lo": "Most systems fail", "mid": "Some outlets, lights or automations need attention", "hi": "All automations, smart outlets and lights tested and operational"}},
-  {"id": "electronics", "label": "Electronics in assigned spots", "short": "Devices", "group": "Room", "a": {"lo": "Devices scattered or missing", "mid": "Some devices not docked or stored", "hi": "Every computer, camera, charger and device in its assigned spot"}},
-  {"id": "charging", "label": "Electronics charged and queued", "short": "Charged", "group": "Tomorrow", "a": {"lo": "Devices uncharged and unprepared", "mid": "Some charging or setup remains", "hi": "Computers, cameras and batteries charged; files and tasks queued"}},
-  {"id": "camera", "label": "Camera kit ready to leave", "short": "Camera kit", "group": "Tomorrow", "a": {"lo": "Camera or essential gear missing", "mid": "Kit partly prepared", "hi": "Camera, lenses, batteries, cards and chargers checked in the bag"}},
-  {"id": "interior", "label": "Car interior", "short": "Interior", "group": "Car", "a": {"lo": "Trash, dirt or clutter throughout", "mid": "Mostly tidy, some cleaning needed", "hi": "Interior clean, organized and free of trash"}},
-  {"id": "exterior", "label": "Car exterior", "short": "Exterior", "group": "Car", "a": {"lo": "Exterior very dirty", "mid": "Some dirt or windows need cleaning", "hi": "Exterior and windows clean"}},
-  {"id": "packed", "label": "Car packed for tomorrow", "short": "Packed", "group": "Tomorrow", "a": {"lo": "Required items not packed", "mid": "Some items still missing", "hi": "All required food, clothes and equipment packed"}},
-  {"id": "food", "label": "Food and drinks packed", "short": "Food", "group": "Tomorrow", "a": {"lo": "Required food or drinks missing", "mid": "Some prep or packing remains", "hi": "Tomorrow\u2019s food and drinks prepared and packed"}},
-  {"id": "clothes", "label": "Clothes packed", "short": "Clothes", "group": "Tomorrow", "a": {"lo": "Required clothes missing", "mid": "Some items still to pack", "hi": "All required clothes, layers and footwear packed"}},
-  {"id": "equipment", "label": "Work and other equipment packed", "short": "Equipment", "group": "Tomorrow", "a": {"lo": "Required equipment missing", "mid": "Some gear not checked or packed", "hi": "All required work and other equipment checked and packed"}},
+/* ---------- routine items (schema 40). ids are the Sheet "code" values. ---------- */
+const ITEMS = [
+  { id: 1, name: 'Water bottle',        detail: 'Filled and in the fridge',        days: [1,2,3,4,5],   dueH: 21, dueM: 0 },
+  { id: 2, name: 'Drink / snack',       detail: 'Energy drink or snack stocked',   days: [1,2,3,4,5],   dueH: 21, dueM: 0 },
+  { id: 3, name: 'Car charging',        detail: 'Plugged in for the morning',     days: [1,2,3,4,5],   dueH: 21, dueM: 0 },
+  { id: 4, name: 'Laundry started',     detail: "Week's laundry in the wash",     days: [0,6],         dueH: 12, dueM: 0, dueWd: 0 },
+  { id: 5, name: 'Washed & dried',      detail: 'Through the dryer',               days: [0,6],         dueH: null },
+  { id: 6, name: 'Folded & put away',   detail: 'Ready for the week',              days: [0,6],         dueH: 21, dueM: 0, dueWd: 0 },
+  { id: 7, name: 'Verse + takeaway',    detail: "Today's verse read, takeaway in mind", days: [0,1,2,3,4,5,6], dueH: 21, dueM: 0 },
 ];
-const IN_PLACE = 8;      // score at or above this counts as "in its place"
-const STALE_HOURS = 26;  // nudge to log after this long
+const SHORT = { 1: 'Water', 2: 'Snack', 3: 'Car', 4: 'Started', 5: 'Washed', 6: 'Folded', 7: 'Verse' };
+const GRACE_MS = 30 * 60 * 1000;
 const LS = { cfg: 'psd.cfg', confirmed: 'psd.entries', pending: 'psd.pending', theme: 'psd.theme' };
 
 /* ---------- helpers ---------- */
@@ -500,15 +400,100 @@ const EASE = 'cubic-bezier(.22,1,.36,1)';
 const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-const svgEl = (tag, attrs = {}) => { const e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
-const hue = v => { const t = clamp((v - 1) / 9, 0, 1); return t < .5 ? 6 + (t / .5) * 38 : 44 + ((t - .5) / .5) * 128; };
-const col = v => `hsl(${hue(v).toFixed(1)} 78% var(--score-l))`;
-const band = v => v <= 3 ? 'lo' : v < IN_PLACE ? 'mid' : 'hi';
-const anchorFor = (slot, v) => slot.a[band(v)];
-const mean = arr => { const v = arr.filter(x => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
-const codeOf = vals => vals.map(v => v - 1).join('');
-const dayKey = ms => { const d = new Date(ms); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
-const fmt = n => n.toFixed(1);
+
+/* ---------- America/New_York wall-clock math ---------- */
+const ET = 'America/New_York';
+const etFmt = new Intl.DateTimeFormat('en-US', { timeZone: ET, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+function etParts(ms) {
+  const o = {};
+  for (const p of etFmt.formatToParts(ms)) o[p.type] = p.value;
+  const y = +o.year, mo = +o.month, d = +o.day;
+  return { y, mo, d, h: (+o.hour) % 24, mi: +o.minute, wd: new Date(Date.UTC(y, mo - 1, d)).getUTCDay() };
+}
+function etOffsetMs(ms) {
+  const p = etParts(ms);
+  return Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi, 0) - Math.floor(ms / 60000) * 60000;
+}
+function etMs(y, mo, d, h, mi) {
+  const guess = Date.UTC(y, mo - 1, d, h, mi);
+  return guess - etOffsetMs(guess);
+}
+function nextDay(y, mo, d) {
+  const dt = new Date(Date.UTC(y, mo - 1, d) + 864e5);
+  return [dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate()];
+}
+function etDayKey(ms) {
+  const p = etParts(ms);
+  return p.y + '-' + String(p.mo).padStart(2, '0') + '-' + String(p.d).padStart(2, '0');
+}
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function fmtTime(h, mi) {
+  const ap = h >= 12 ? 'PM' : 'AM', hh = h % 12 === 0 ? 12 : h % 12;
+  return hh + ':' + String(mi).padStart(2, '0') + ' ' + ap;
+}
+
+/* deadline + cycle window for an item on a given ET date */
+function deadlineFor(item, y, mo, d, wd) {
+  if (item.dueH == null) return null;
+  let ty = y, tm = mo, td = d;
+  if (item.dueWd != null) {
+    const add = (item.dueWd - wd + 7) % 7;
+    const dt = new Date(Date.UTC(y, mo - 1, d) + add * 864e5);
+    ty = dt.getUTCFullYear(); tm = dt.getUTCMonth() + 1; td = dt.getUTCDate();
+  }
+  return etMs(ty, tm, td, item.dueH, item.dueM);
+}
+function cycleStartFor(item, y, mo, d, wd) {
+  let ty = y, tm = mo, td = d;
+  if (item.dueWd != null) { // weekend cycle starts Saturday 00:00
+    const back = (wd - 6 + 7) % 7;
+    const dt = new Date(Date.UTC(y, mo - 1, d) - back * 864e5);
+    ty = dt.getUTCFullYear(); tm = dt.getUTCMonth() + 1; td = dt.getUTCDate();
+  }
+  return etMs(ty, tm, td, 0, 0);
+}
+
+/* status of an item for one ET date, evaluated as of asOfMs.
+   'ontime' | 'late' | 'done' (no deadline) | 'missed' | 'upcoming' */
+function itemStatus(item, y, mo, d, wd, asOfMs) {
+  const start = cycleStartFor(item, y, mo, d, wd);
+  const [ny, nmo, nd] = nextDay(y, mo, d);
+  const end = Math.min(etMs(ny, nmo, nd, 0, 0), asOfMs);
+  const due = deadlineFor(item, y, mo, d, wd);
+  let latest = null;
+  for (let k = entries.length - 1; k >= 0; k--) {
+    const e = entries[k];
+    if (e.item !== item.id || e.ms < start || e.ms >= end) continue;
+    latest = e; break;
+  }
+  if (latest && latest.done) {
+    if (due == null) return 'done';
+    return latest.ms <= due ? 'ontime' : 'late';
+  }
+  if (due == null || asOfMs <= due + GRACE_MS) return 'upcoming';
+  return 'missed';
+}
+
+/* consecutive on-time scheduled days, walking back from today */
+function streakOf(item) {
+  const now = Date.now(), p = etParts(now);
+  let n = 0, checked = 0;
+  for (let k = 0; k < 180 && checked < 90; k++) {
+    const dt = new Date(Date.UTC(p.y, p.mo - 1, p.d) - k * 864e5);
+    const y = dt.getUTCFullYear(), mo = dt.getUTCMonth() + 1, d = dt.getUTCDate(), wd = dt.getUTCDay();
+    if (!item.days.includes(wd)) continue;
+    checked++;
+    const [ny, nmo, nd] = nextDay(y, mo, d);
+    const asOf = k === 0 ? now : etMs(ny, nmo, nd, 0, 0);
+    const st = itemStatus(item, y, mo, d, wd, asOf);
+    if (st === 'upcoming') continue; // today not yet decided, or pre-deadline weekend day
+    if (st === 'ontime' || st === 'done') { n++; continue; }
+    break;
+  }
+  return n;
+}
 
 /* ---------- state ---------- */
 const managed = typeof google !== 'undefined' && !!google.script?.run;
@@ -519,38 +504,31 @@ const connected = () => managed || !!(cfg.url && cfg.key && (!cfg.expires || cfg
 function receiveConnection() {
   const values = new URLSearchParams(location.hash.slice(1));
   const token = values.get('session'), expires = Number(values.get('expires'));
-  if (token && /^[a-f0-9]{64}$/.test(token) && expires > Date.now() && expires <= Date.now()+8*86400000) {
-    cfg = {url:API_APP,key:token,expires:expires}; save(LS.cfg,cfg);
+  if (token && /^[a-f0-9]{64}$/.test(token) && expires > Date.now() && expires <= Date.now() + 8 * 86400000) {
+    cfg = { url: API_APP, key: token, expires: expires }; save(LS.cfg, cfg);
   }
-  if (values.has('session')) history.replaceState(null,'',location.pathname+location.search);
+  if (values.has('session')) history.replaceState(null, '', location.pathname + location.search);
 }
 let confirmed = load(LS.confirmed, []);
 let pending = load(LS.pending, []);
 let entries = [];
-let draft = SLOTS.map(() => null);
-let lastVals = SLOTS.map(() => null);
-let draftNA = new Set();
-const OPTIONAL = new Set(["charging","camera","packed","food","clothes","equipment"]);
-let series = 'overall';
-let range = 30;
-let hoverI = null;
+let lastInputAt = 0;
 let syncing = false;
 let lastSyncAt = 0;
-let chartKey = '', heatKey = '';
 
+/* NOTE: the deployed backend sanitizes Details to {na:[...]} only, so the
+   done/undone state is encoded in na ("done" present = done). Old schemas
+   7/28/31 stay in the Sheet untouched and are ignored here. */
 function parseEntry(raw) {
   const ms = Date.parse(raw.t);
   if (isNaN(ms)) return null;
-  let code = String(raw.c).replace(/\D/g, '');
-  const len = Math.max(Number(raw.s) || 0, code.length);
-  code = code.padStart(len, '0');
-  let x = raw.x || {}; if (typeof x === "string") { try { x = JSON.parse(x); } catch (_) { x = {}; } }
-  if (Number(raw.s) === 28 && code.length >= 28) x = {...x, na:[...OPTIONAL].filter((id,i)=>code[22+i]==='1')};
-  const partial=Number(raw.s)===31 && code.length===31;
-  const rated=partial?Number(code.slice(22,29)):0;
-  if(partial) { const bits=Number(code.slice(29,31));x={...x,na:[...OPTIONAL].filter((id,i)=>(bits & (2**i))!==0)}; }
-  const vals = SLOTS.map((slot, i) => (x.na || []).includes(slot.id) || (partial && !(rated & (2**i))) ? null : i < Math.min(code.length,22) ? Number(code[i]) + 1 : null);
-  return { t: raw.t, ms, code, vals, x, partial };
+  const s = Number(raw.s) || 0;
+  if (s !== 40) return null;
+  const item = parseInt(String(raw.c).replace(/\D/g, ''), 10);
+  if (!item || item < 1 || item > ITEMS.length) return null;
+  let x = raw.x || {};
+  if (typeof x === 'string') { try { x = JSON.parse(x); } catch (_) { x = {}; } }
+  return { t: raw.t, ms, s, item, done: Array.isArray(x.na) && x.na.includes('done') };
 }
 function rebuild() {
   const map = new Map();
@@ -558,36 +536,21 @@ function rebuild() {
   pending.forEach(e => map.set(e.t, e));
   entries = [...map.values()].map(parseEntry).filter(Boolean).sort((a, b) => a.ms - b.ms);
 }
-function slotState(i) {
-  let cur = null, prev = null;
-  for (let k = entries.length - 1; k >= 0; k--) {
-    const v = entries[k].vals[i];
-    if (v == null) { if(cur == null && entries[k].partial) return {cur:null,prev:null,delta:null,na:(entries[k].x.na||[]).includes(SLOTS[i].id)}; if(cur == null && (entries[k].x.na || []).includes(SLOTS[i].id)) return {cur:null,prev:null,delta:null,na:true}; continue; }
-    if (cur == null) cur = v; else { prev = v; break; }
-  }
-  return { cur, prev, delta: cur != null && prev != null ? cur - prev : null };
+function queueEvent(itemId, done) {
+  const now = Math.max(Date.now(), lastInputAt + 1); lastInputAt = now;
+  const e = { t: new Date(now).toISOString(), s: 40, c: String(itemId), x: { na: done ? ['done'] : [] } };
+  pending.push(e); save(LS.pending, pending); rebuild(); renderAll();
+  setSync('saving', connected() ? 'Saving…' : 'Sheet not connected');
+  clearTimeout(saveTimer); saveTimer = setTimeout(sync, 250);
 }
-const overallNow = () => mean(SLOTS.map((_, i) => slotState(i).cur));
-const dailyMap = () => { const m = new Map(); entries.forEach(e => m.set(dayKey(e.ms), e)); return m; };
-const valueOf = (e, id) => id === 'overall' ? mean(e.vals) : e.vals[SLOTS.findIndex(s => s.id === id)];
-function lastDays(n) {
-  const dm = dailyMap(), base = new Date(); base.setHours(12, 0, 0, 0);
-  const out = [];
-  for (let k = n - 1; k >= 0; k--) { const d = new Date(base); d.setDate(base.getDate() - k); out.push({ date: d, e: dm.get(dayKey(d.getTime())) }); }
-  return out;
-}
-function streak() {
-  const dm = dailyMap(), d = new Date(); d.setHours(12, 0, 0, 0);
-  let n = 0, first = true;
-  for (let k = 0; k < 400; k++) {
-    const e = dm.get(dayKey(d.getTime()));
-    if (!e) { if (first) { first = false; d.setDate(d.getDate() - 1); continue; } break; }
-    first = false;
-    const v = e.vals.filter(x => x != null);
-    if (v.length && Math.min(...v) >= IN_PLACE) n++; else break;
-    d.setDate(d.getDate() - 1);
-  }
-  return n;
+let saveTimer;
+function toggleItem(id) {
+  const item = ITEMS.find(i => i.id === id);
+  const p = etParts(Date.now());
+  const st = itemStatus(item, p.y, p.mo, p.d, p.wd, Date.now());
+  const isDone = st === 'ontime' || st === 'late' || st === 'done';
+  queueEvent(id, !isDone);
+  toast(item.name + (!isDone ? ' marked done' : ' cleared'));
 }
 function ago(ms) {
   const m = Math.floor((Date.now() - ms) / 60000);
@@ -595,299 +558,180 @@ function ago(ms) {
   if (m < 60) return m + ' min ago';
   const h = Math.floor(m / 60);
   if (h < 24) return h + (h === 1 ? ' hour ago' : ' hours ago');
-  const days = Math.round((new Date().setHours(12, 0, 0, 0) - new Date(ms).setHours(12, 0, 0, 0)) / 864e5);
-  return days <= 1 ? 'yesterday' : days + ' days ago';
+  return 'over a day ago';
 }
 
-/* ---------- ring ---------- */
-const R = 140, GAP = 9;
-const polar = (r, deg) => { const a = deg * Math.PI / 180; return [r * Math.cos(a), r * Math.sin(a)]; };
-const arcD = (r, a0, a1) => { const [x0, y0] = polar(r, a0), [x1, y1] = polar(r, a1); return `M${x0.toFixed(2)} ${y0.toFixed(2)}A${r} ${r} 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`; };
-const ring = $('#ring'), ringWrap = $('#ringWrap');
-const bigNum = $('#bigNum'), bigCap = $('#bigCap'), bigSub = $('#bigSub');
-const segs = [];
-let firstRender = true;
-
-function buildRing() {
-  ring.append(svgEl('circle', { class: 'orbit', r: 224 }));
-  const step = 360 / SLOTS.length;
-  SLOTS.forEach((s, i) => {
-    const a0 = -90 + i * step + GAP / 2, a1 = -90 + (i + 1) * step - GAP / 2, d = arcD(R, a0, a1);
-    const g = svgEl('g', { class: 'seg-g', tabindex: 0, role: 'button', 'aria-label': s.label });
-    const track = svgEl('path', { class: 'track', d });
-    const fill = svgEl('path', { class: 'fill', d, pathLength: 100 });
-    const hit = svgEl('path', { class: 'hit', d });
-    const mid = (a0 + a1) / 2, c = Math.cos(mid * Math.PI / 180), sn = Math.sin(mid * Math.PI / 180);
-    const [lx, ly] = polar(R + 30, mid);
-    const text = svgEl('text', { x: lx.toFixed(1), y: ly.toFixed(1), 'text-anchor': c > .3 ? 'start' : c < -.3 ? 'end' : 'middle', 'dominant-baseline': 'middle' });
-    if (Math.abs(c) <= .3) text.setAttribute('y', (ly + (sn < 0 ? -6 : 6)).toFixed(1));
-    text.textContent = s.short;
-    g.append(track, fill, hit, text);
-    ring.append(g);
-    segs.push({ g, fill, text });
-    const on = () => { hoverI = i; g.classList.add('on'); ring.classList.add('hov'); renderCenter(false); };
-    const off = () => { hoverI = null; g.classList.remove('on'); ring.classList.remove('hov'); renderCenter(false); };
-    g.addEventListener('pointerenter', on); g.addEventListener('pointerleave', off);
-    g.addEventListener('focus', on); g.addEventListener('blur', off);
-    g.addEventListener('click', () => openSheet(s.id));
-    g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openSheet(s.id); } });
-  });
-  void ring.getBoundingClientRect();
-}
-
-let shown = 0, raf = 0;
-function countTo(to) {
-  cancelAnimationFrame(raf);
-  if (reduceMotion) { shown = to; bigNum.textContent = fmt(to); return; }
-  const from = shown, t0 = performance.now(), dur = 1300;
-  const step = now => {
-    const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 4);
-    shown = from + (to - from) * e;
-    bigNum.textContent = fmt(shown);
-    if (k < 1) raf = requestAnimationFrame(step);
-  };
-  raf = requestAnimationFrame(step);
-}
-function statusText() {
-  if (!entries.length) return 'Log your first update to light this up';
-  const cur = SLOTS.map((_, i) => slotState(i).cur);
-  const unrated = cur.filter(v => v == null).length;
-  if (unrated) return unrated + (unrated === 1 ? ' area not rated yet' : ' areas not rated yet');
-  const below = cur.filter(v => v < IN_PLACE).length;
-  return below ? below + (below === 1 ? ' area below ' : ' areas below ') + IN_PLACE : 'Everything is in its place';
-}
-function renderCenter(animate) {
-  if (hoverI != null) {
-    cancelAnimationFrame(raf);
-    const s = SLOTS[hoverI], v = slotState(hoverI).cur;
-    bigNum.textContent = v == null ? '–' : String(v);
-    bigNum.style.color = v == null ? 'var(--faint)' : col(v);
-    bigCap.textContent = s.label;
-    bigSub.textContent = v == null ? 'Not rated yet' : anchorFor(s, v);
-    return;
+/* ---------- countdown ---------- */
+function countdownText(due, now) {
+  if (due == null) return 'no deadline';
+  const diff = due - now;
+  if (diff <= 0) {
+    const m = Math.ceil(-diff / 60000);
+    if (m < 1) return 'due now';
+    return 'overdue ' + (m >= 60 ? Math.floor(m / 60) + 'h ' + (m % 60) + 'm' : m + 'm');
   }
-  const o = overallNow();
-  bigCap.textContent = 'overall';
-  bigSub.textContent = statusText();
-  if (o == null) { cancelAnimationFrame(raf); shown = 0; bigNum.textContent = '–'; bigNum.style.color = 'var(--faint)'; return; }
-  bigNum.style.color = col(o);
-  if (animate) countTo(o); else { cancelAnimationFrame(raf); shown = o; bigNum.textContent = fmt(o); }
-}
-function renderRing() {
-  SLOTS.forEach((s, i) => {
-    const { cur } = slotState(i), seg = segs[i], p = cur == null ? 0 : cur / 10;
-    if (firstRender) seg.fill.style.transitionDelay = (350 + i * 120) + 'ms';
-    seg.fill.style.strokeDasharray = `${p * 100} 100`;
-    seg.fill.style.opacity = p > 0 ? 1 : 0;
-    if (cur != null) { const c = col(cur); seg.fill.style.stroke = c; seg.fill.style.setProperty('--seg', c); }
-  });
-  if (firstRender) setTimeout(() => segs.forEach(s => (s.fill.style.transitionDelay = '')), 2400);
-  const o = overallNow();
-  document.documentElement.style.setProperty('--glow-h', o == null ? 190 : hue(o).toFixed(1));
-  const perfect = o != null && SLOTS.every((_, i) => { const v = slotState(i).cur; return v != null && v >= IN_PLACE; });
-  ringWrap.classList.toggle('perfect', perfect);
-  renderCenter(true);
+  const m = Math.floor(diff / 60000);
+  if (m < 60) return m <= 1 ? 'due in 1m' : 'due in ' + m + 'm';
+  const h = Math.floor(m / 60), dp = etParts(due), np = etParts(now);
+  if (dp.y === np.y && dp.mo === np.mo && dp.d === np.d) return 'due in ' + h + 'h ' + (m % 60) + 'm';
+  return 'due ' + DAY_SHORT[dp.wd] + ' ' + fmtTime(dp.h, dp.mi);
 }
 
-/* ---------- fix first list ---------- */
-const rowsEl = $('#rows'), chipsEl = $('#chips'), inplaceEl = $('#inplace');
-const rowEls = SLOTS.map((s, i) => {
-  const li = document.createElement('li');
-  li.dataset.id = s.id;
-  li.innerHTML = `<button class="row-btn" type="button">
-    <span><span class="row-name">${s.label}</span><span class="delta" hidden></span></span>
-    <span class="row-score">–</span>
-    <span class="bar"><i></i></span>
-    <span class="row-hint"></span></button>`;
-  li.querySelector('.row-btn').addEventListener('click', () => openSheet(s.id));
-  return { li, delta: li.querySelector('.delta'), score: li.querySelector('.row-score'), fill: li.querySelector('.bar i'), hint: li.querySelector('.row-hint'), attached: false };
-});
-
-function renderList() {
-
-  const before = new Map(rowEls.filter(r => r.attached).map(r => [r.li.dataset.id, r.li.getBoundingClientRect().top]));
-  const info = SLOTS.map((s, i) => ({ s, i, ...slotState(i) }));
-  const need = info.filter(x => !x.na && (x.cur == null || x.cur < IN_PLACE)).sort((a, b) => (a.cur ?? 0) - (b.cur ?? 0) || a.i - b.i);
-  const ok = info.filter(x => x.cur != null && x.cur >= IN_PLACE);
-
-  $('#listTitle').textContent = !entries.length ? 'Fix first' : need.length ? 'Fix first' : 'Everything is in its place';
-  $('#listSub').textContent = !entries.length ? 'Nothing logged yet.' : need.length ? 'Lowest scores first. Tap one to update it.' : 'Keep it there. Log when something moves.';
-
-  const wanted = new Set(need.map(x => x.s.id));
-  rowEls.forEach(r => { if (!wanted.has(r.li.dataset.id) && r.attached) { r.li.remove(); r.attached = false; } });
-  const emptyMsg = rowsEl.querySelector('.empty'); if (emptyMsg) emptyMsg.remove();
-  if (!entries.length) {
-    const li = document.createElement('li'); li.className = 'empty';
-    li.textContent = 'Tap Log update and rate each area once. This list then sorts itself by what needs attention.';
-    rowsEl.append(li);
+/* ---------- Now ---------- */
+const nowList = $('#nowList');
+const CHECK_SVG = '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+function taskRow(item, st, now) {
+  const done = st === 'ontime' || st === 'late' || st === 'done';
+  const p = etParts(now);
+  const due = deadlineFor(item, p.y, p.mo, p.d, p.wd);
+  const streak = streakOf(item);
+  let badge, cls = '';
+  if (st === 'missed') { badge = '<span class="badge over">' + countdownText(due, now) + '</span>'; }
+  else if (st === 'upcoming') {
+    const soon = due != null && due - now < 3 * 36e5;
+    badge = '<span class="badge ' + (soon ? 'soon' : 'up') + '">' + countdownText(due, now) + '</span>';
   }
-  need.forEach((x, n) => {
-    const r = rowEls[x.i];
-    r.score.textContent = x.cur ?? '–';
-    r.score.style.color = x.cur == null ? 'var(--faint)' : col(x.cur);
-    r.hint.textContent = x.cur == null ? 'Not rated yet' : anchorFor(x.s, x.cur);
-    r.delta.hidden = !x.delta;
-    if (x.delta) { r.delta.textContent = (x.delta > 0 ? '+' : '−') + Math.abs(x.delta); r.delta.className = 'delta ' + (x.delta > 0 ? 'up' : 'down'); }
-    rowsEl.append(r.li);
-    if (!r.attached) {
-      r.attached = true;
-      r.fill.style.width = '0%';
-      if (firstRender) { r.li.classList.add('enter'); r.li.style.setProperty('--i', n); }
-      void r.fill.offsetWidth;
-    }
-    r.fill.style.width = ((x.cur ?? 0) * 10) + '%';
-    r.fill.style.backgroundColor = x.cur == null ? 'var(--faint)' : col(x.cur);
-  });
-  // FLIP the survivors into their new order
-  if (!reduceMotion) rowEls.forEach(r => {
-    if (!r.attached || !before.has(r.li.dataset.id)) return;
-    const dy = before.get(r.li.dataset.id) - r.li.getBoundingClientRect().top;
-    if (Math.abs(dy) > 1) r.li.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 700, easing: EASE });
-  });
-
-  inplaceEl.hidden = !ok.length;
-  chipsEl.innerHTML = '';
-  ok.forEach((x, n) => {
-    const b = document.createElement('button');
-    b.className = 'chip-ok'; b.type = 'button'; b.style.setProperty('--i', n);
-    b.innerHTML = `<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>${x.s.short} ${x.cur}`;
-    b.addEventListener('click', () => openSheet(x.s.id));
-    chipsEl.append(b);
-  });
+  else if (st === 'late') { badge = '<span class="badge waslate">done late</span>'; cls = ' doneitem'; }
+  else { badge = '<span class="badge did">done</span>'; cls = ' doneitem'; }
+  const dueLine = due == null ? 'no hard deadline' : 'due ' + fmtTime(etParts(due).h, etParts(due).mi) + (item.dueWd != null ? ' ' + DAY_SHORT[etParts(due).wd] : '');
+  return `<div class="taskrow"><button type="button" class="task${done ? ' done' : ''}${cls}" data-id="${item.id}" aria-pressed="${done}" aria-label="${item.name}: ${done ? 'done, tap to undo' : st === 'missed' ? 'missed, tap to mark done' : 'tap to mark done'}">
+    <span class="tick">${CHECK_SVG}</span>
+    <span class="tmain"><span class="tname">${item.name}</span><span class="tdetail">${item.detail} &middot; ${dueLine}</span></span>
+    <span class="tright">${badge}${streak > 0 ? `<span class="streak${streak >= 7 ? ' hot' : ''}">${streak}-day streak</span>` : ''}</span>
+  </button></div>`;
 }
+function renderNow() {
+  const now = Date.now(), p = etParts(now);
+  const rows = ITEMS.filter(it => it.days.includes(p.wd))
+    .map(it => ({ it, st: itemStatus(it, p.y, p.mo, p.d, p.wd, now) }));
+  const overdue = rows.filter(r => r.st === 'missed');
+  const due = rows.filter(r => r.st === 'upcoming').sort((a, b) => {
+    const da = deadlineFor(a.it, p.y, p.mo, p.d, p.wd), db = deadlineFor(b.it, p.y, p.mo, p.d, p.wd);
+    return (da == null ? Infinity : da) - (db == null ? Infinity : db);
+  });
+  const done = rows.filter(r => r.st !== 'missed' && r.st !== 'upcoming');
 
-/* ---------- trend ---------- */
-const chart = $('#chart'), tip = $('#tip'), chartWrap = $('#chartWrap'), heatEl = $('#heat');
-const CW = 720, CH = 240, CL = 30, CR = 12, CT = 14, CB = 28, IW = CW - CL - CR, IH = CH - CT - CB;
-let chartPts = [];
-const cy = v => CT + (10 - v) / 9 * IH;
+  $('#nowTitle').textContent = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][p.wd] + "'s routine";
+  const dueCount = overdue.length + due.length;
+  $('#nowSub').textContent = dueCount ? dueCount + (dueCount === 1 ? ' item' : ' items') + ' on the list today.' : 'Nothing scheduled today.';
 
-function smooth(p) {
-  let d = `M${p[0].x.toFixed(1)} ${p[0].y.toFixed(1)}`;
-  for (let i = 0; i < p.length - 1; i++) {
-    const p0 = p[i - 1] || p[i], p1 = p[i], p2 = p[i + 1], p3 = p[i + 2] || p2;
-    const c1y = clamp(p1.y + (p2.y - p0.y) / 6, CT, CT + IH), c2y = clamp(p2.y - (p3.y - p1.y) / 6, CT, CT + IH);
-    d += `C${(p1.x + (p2.x - p0.x) / 6).toFixed(1)} ${c1y.toFixed(1)} ${(p2.x - (p3.x - p1.x) / 6).toFixed(1)} ${c2y.toFixed(1)} ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+  let h = '';
+  if (overdue.length) {
+    h += `<div class="sec-head overdue">Overdue <span class="n">${overdue.length}</span></div>`;
+    overdue.forEach(r => { h += taskRow(r.it, r.st, now); });
   }
-  return d;
-}
-function renderChart() {
-  const key = series + '|' + range, play = key !== chartKey; chartKey = key;
-  const days = lastDays(range);
-  const X = i => CL + (days.length > 1 ? i * IW / (days.length - 1) : IW / 2);
-  chartPts = [];
-  days.forEach((d, i) => { if (!d.e) return; const v = valueOf(d.e, series); if (v == null) return; chartPts.push({ x: X(i), y: cy(v), v, d }); });
-
-  let h = `<defs><linearGradient id="lg" gradientUnits="userSpaceOnUse" x1="0" y1="${CT}" x2="0" y2="${CT + IH}">`;
-  [10, 8, 5.5, 1].forEach(v => { h += `<stop offset="${((10 - v) / 9).toFixed(3)}" style="stop-color:${col(v)}"/>`; });
-  h += '</defs>';
-  [1, 5, 10].forEach(v => { h += `<line x1="${CL}" x2="${CW - CR}" y1="${cy(v)}" y2="${cy(v)}" stroke="var(--line)"/><text x="${CL - 9}" y="${cy(v) + 4}" text-anchor="end">${v}</text>`; });
-  h += `<line x1="${CL}" x2="${CW - CR}" y1="${cy(IN_PLACE)}" y2="${cy(IN_PLACE)}" stroke="${col(IN_PLACE)}" stroke-opacity=".45" stroke-dasharray="3 5"/>`;
-  h += `<text x="${CW - CR}" y="${cy(IN_PLACE) - 6}" text-anchor="end">in place</text>`;
-  const ticks = [0, .25, .5, .75, 1].map(t => Math.round(t * (days.length - 1)));
-  [...new Set(ticks)].forEach((i, n, arr) => {
-    const anchor = n === 0 ? 'start' : n === arr.length - 1 ? 'end' : 'middle';
-    h += `<text x="${X(i).toFixed(1)}" y="${CH - 6}" text-anchor="${anchor}">${days[i].date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</text>`;
-  });
-  h += `<g class="${play ? 'play' : ''}">`;
-  if (chartPts.length >= 2) {
-    const d = smooth(chartPts);
-    h += `<path class="ar" d="${d}L${chartPts[chartPts.length - 1].x.toFixed(1)} ${CT + IH}L${chartPts[0].x.toFixed(1)} ${CT + IH}Z"/>`;
-    h += `<path class="ln" d="${d}" pathLength="1"/>`;
+  if (due.length) {
+    h += `<div class="sec-head">Due today <span class="n">${due.length}</span></div>`;
+    due.forEach(r => { h += taskRow(r.it, r.st, now); });
   }
-  if (!chartPts.length) h += `<text x="${CW / 2}" y="${CH / 2}" text-anchor="middle" style="font-size:13px">Nothing logged in this range yet.</text>`;
-  chartPts.forEach((p, n) => {
-    h += `<circle class="dt" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${n === chartPts.length - 1 ? 5 : 3.2}" style="stroke:${col(p.v)}"/>`;
-  });
-  if (chartPts.length) { const l = chartPts[chartPts.length - 1]; h += `<circle class="pulse" cx="${l.x.toFixed(1)}" cy="${l.y.toFixed(1)}" r="5" style="stroke:${col(l.v)}"/>`; }
-  h += `</g><line class="xh" id="xh" y1="${CT}" y2="${CT + IH}"/><circle class="fh" id="fh" r="6"/><rect id="chit" x="0" y="0" width="${CW}" height="${CH}" fill="transparent"/>`;
-  chart.innerHTML = h;
-  chart.setAttribute('aria-label', 'Trend for ' + (series === 'overall' ? 'overall score' : SLOTS.find(s => s.id === series).label));
-
-  // heat strip
-  const hDays = lastDays(28), hk = series, hplay = hk !== heatKey; heatKey = hk;
-  heatEl.className = 'heat' + (hplay ? ' play' : '');
-  heatEl.innerHTML = '';
-  hDays.forEach((d, i) => {
-    const v = d.e ? valueOf(d.e, series) : null, c = document.createElement('i');
-    c.style.setProperty('--i', i);
-    const label = d.date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-    c.title = v == null ? label + ': no entry' : label + ': ' + (series === 'overall' ? fmt(v) : v);
-    if (v != null) { c.className = 'has'; c.style.background = col(v); }
-    if (i === hDays.length - 1) c.classList.add('today');
-    heatEl.append(c);
-  });
-
-  // stat line
-  const s = streak(), week = mean(lastDays(7).map(d => d.e ? mean(d.e.vals) : null));
-  const parts = [];
-  if (!entries.length) parts.push('Log a few days and your trend shows up here.');
-  else {
-    parts.push(s > 0 ? `${s}-day streak with every area at ${IN_PLACE} or higher.` : 'No streak running yet.');
-    if (week != null) parts.push(`7-day average ${fmt(week)}.`);
+  if (done.length) {
+    h += `<div class="sec-head">Done <span class="n">${done.length}</span></div>`;
+    done.forEach(r => { h += taskRow(r.it, r.st, now); });
   }
-  $('#statLine').textContent = parts.join(' ');
-}
-chartWrap.addEventListener('pointermove', e => {
-  if (!chartPts.length) return;
-  const r = chart.getBoundingClientRect(), vx = (e.clientX - r.left) / r.width * CW;
-  let best = chartPts[0];
-  chartPts.forEach(p => { if (Math.abs(p.x - vx) < Math.abs(best.x - vx)) best = p; });
-  const xh = $('#xh'), fh = $('#fh');
-  xh.setAttribute('x1', best.x); xh.setAttribute('x2', best.x); xh.style.opacity = 1;
-  fh.setAttribute('cx', best.x); fh.setAttribute('cy', best.y); fh.style.stroke = col(best.v); fh.style.opacity = 1;
-  tip.innerHTML = `<span>${best.d.date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span><b style="color:${col(best.v)}">${series === 'overall' ? fmt(best.v) : best.v}</b>`;
-  tip.style.left = clamp(best.x / CW * 100, 9, 91) + '%';
-  tip.style.top = (best.y / CH * 100) + '%';
-  tip.style.opacity = 1;
-});
-chartWrap.addEventListener('pointerleave', () => { tip.style.opacity = 0; const xh = $('#xh'), fh = $('#fh'); if (xh) { xh.style.opacity = 0; fh.style.opacity = 0; } });
+  if (!rows.length) h += '<div class="alldone">Nothing on the routine today.</div>';
+  else if (!overdue.length && !due.length) h += '<div class="alldone"><b>All clear.</b> Everything on today\'s list is done.</div>';
+  nowList.innerHTML = h;
+  nowList.querySelectorAll('.task').forEach(b => b.addEventListener('click', () => toggleItem(Number(b.dataset.id))));
 
-/* sliding pill segmented controls */
-function movePill(seg, instant) {
-  const b = seg.querySelector('[aria-pressed="true"]'), p = seg.querySelector('.pill');
-  if (!b || !p) return;
-  if (instant) p.style.transition = 'none';
-  p.style.width = b.offsetWidth + 'px';
-  p.style.transform = `translateX(${b.offsetLeft}px)`;
-  if (instant) { void p.offsetWidth; p.style.transition = ''; }
-  seg.scrollTo({ left: Math.max(0, b.offsetLeft - 24), behavior: instant || reduceMotion ? 'auto' : 'smooth' });
-}
-const seriesSeg = $('#seriesSeg'), rangeSeg = $('#rangeSeg');
-[['overall', 'Overall'], ...SLOTS.map(s => [s.id, s.short])].forEach(([id, label]) => {
-  const b = document.createElement('button');
-  b.type = 'button'; b.dataset.v = id; b.textContent = label; b.setAttribute('aria-pressed', String(id === series));
-  seriesSeg.append(b);
-});
-seriesSeg.addEventListener('click', e => {
-  const b = e.target.closest('button'); if (!b) return;
-  series = b.dataset.v;
-  seriesSeg.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
-  movePill(seriesSeg); renderChart();
-});
-rangeSeg.addEventListener('click', e => {
-  const b = e.target.closest('button'); if (!b) return;
-  range = Number(b.dataset.v);
-  rangeSeg.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
-  movePill(rangeSeg); renderChart();
-});
+  // header line + fab nudge
+  const dstr = DAY_NAMES[p.wd] + ', ' + MONTHS[p.mo - 1] + ' ' + p.d;
+  $('#todayLine').innerHTML = overdue.length
+    ? `${dstr} &middot; <span class="over">${overdue.length} overdue</span>`
+    : dstr + (dueCount ? ` &middot; ${dueCount} due` : '');
+  $('#fab').classList.toggle('nudge', overdue.length > 0);
 
-/* ---------- header / footer ---------- */
-function renderHeader() {
-  const last = entries[entries.length - 1], t = $('#lastLogged');
-  let stale = false;
-  if (!last) { t.textContent = 'No entries yet'; stale = true; }
-  else { t.textContent = 'Last logged ' + ago(last.ms); stale = Date.now() - last.ms > STALE_HOURS * 36e5; }
-  t.classList.toggle('stale', stale && !!last);
-  $('#fab').classList.toggle('nudge', stale);
-  $('#legend').innerHTML = (last ? `Latest code <code>${last.code}</code>. ` : '') +
-    'Scores run from 1 (needs work) to 10 (ready). Areas: ' + SLOTS.map(s => s.short).join(', ') + '.';
+  const names = rows.map(r => `${SHORT[r.it.id]} ${r.st}`).join(', ');
+  $('#srSummary').textContent = rows.length ? `Today's routine: ${names}.` : 'Nothing scheduled today.';
 }
+
+/* ---------- week view ---------- */
+function renderWeek() {
+  const now = Date.now(), p0 = etParts(now);
+  const days = [];
+  for (let k = 6; k >= 0; k--) {
+    const dt = new Date(Date.UTC(p0.y, p0.mo - 1, p0.d) - k * 864e5);
+    days.push({ y: dt.getUTCFullYear(), mo: dt.getUTCMonth() + 1, d: dt.getUTCDate(), wd: dt.getUTCDay(), today: k === 0 });
+  }
+  let h = '<span></span>';
+  days.forEach(dd => { h += `<span class="dlab${dd.today ? ' today' : ''}">${DAY_SHORT[dd.wd]}</span>`; });
+  let on = 0, late = 0, missed = 0;
+  ITEMS.forEach(it => {
+    h += `<span class="rlab" title="${it.name}">${SHORT[it.id]}</span>`;
+    days.forEach(dd => {
+      if (!it.days.includes(dd.wd)) { h += '<span><i class="wdot off"></i></span>'; return; }
+      const [ny, nmo, nd] = nextDay(dd.y, dd.mo, dd.d);
+      const asOf = dd.today ? now : etMs(ny, nmo, nd, 0, 0);
+      const st = itemStatus(it, dd.y, dd.mo, dd.d, dd.wd, asOf);
+      if (!dd.today || true) {
+        if (st === 'ontime' || st === 'done') on++;
+        else if (st === 'late') late++;
+        else if (st === 'missed') missed++;
+      }
+      const label = `${it.name}, ${DAY_NAMES[dd.wd]}: ${st}`;
+      h += `<span title="${label}"><i class="wdot ${st}"></i></span>`;
+    });
+  });
+  $('#weekGrid').innerHTML = h;
+  $('#weekSum').innerHTML = (on + late + missed)
+    ? `Last 7 days: <b>${on}</b> on time &middot; <b>${late}</b> late &middot; <b>${missed}</b> missed.`
+    : 'No check-ins in the last 7 days yet.';
+}
+
 function renderAll() {
-  renderHeader(); renderRing(); renderList(); renderChart();
-  const cur = SLOTS.map((s, i) => `${s.label} ${slotState(i).cur ?? 'not rated'}`).join(', ');
-  $('#srSummary').textContent = entries.length ? 'Overall ' + fmt(overallNow() ?? 0) + '. ' + cur : '';
-  firstRender = false;
+  renderNow();
+  renderWeek();
+}
+
+/* ---------- toast ---------- */
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+/* ---------- sync with Google Sheets ---------- */
+function setSync(state, msg) {
+  $('#syncBtn').dataset.state = state;
+  $('#syncText').textContent = msg || ({ local: 'Sheet not connected', ok: 'Saved to Sheet', saving: 'Saving…', queued: 'Waiting to sync', error: 'Not saved to Sheet' })[state];
+  const vs = $('#voiceSync'); if (vs) vs.textContent = $('#syncText').textContent;
+}
+async function api(params) {
+  if (managed) return new Promise((resolve, reject) => google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).dashboardApi(params));
+  const u = new URL(cfg.url);
+  u.searchParams.set('key', cfg.key);
+  Object.keys(params).forEach(k => u.searchParams.set(k, params[k]));
+  const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 20000);
+  try {
+    const res = await fetch(u.toString(), { signal: ctl.signal, redirect: 'follow', cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  } finally { clearTimeout(to); }
+}
+async function sync() {
+  if (!connected()) { setSync('error', 'Sign in to sync'); return; }
+  if (syncing) return;
+  syncing = true; setSync('saving');
+  try {
+    const r = await api({ action: 'list' });
+    if (!r.ok) throw new Error(r.error || 'list failed');
+    confirmed = r.rows.map(([t, s, c, x]) => ({ t, s: Number(s) || 0, c: String(c), x: x || {} }));
+    const have = new Set(confirmed.map(e => e.t));
+    pending = pending.filter(e => !have.has(e.t));
+    for (const e of [...pending]) {
+      const w = await api({ action: 'add', t: e.t, schema: e.s, code: e.c, notes: JSON.stringify(e.x || {}) });
+      if (!w.ok) throw new Error(w.error || 'save failed');
+      pending = pending.filter(x => x.t !== e.t); confirmed.push(e);
+    }
+    save(LS.confirmed, confirmed); save(LS.pending, pending);
+    rebuild(); renderAll();
+    setSync(pending.length ? 'saving' : 'ok'); lastSyncAt = Date.now();
+  } catch (err) {
+    save(LS.confirmed, confirmed); save(LS.pending, pending); rebuild(); renderAll();
+    const msg = String(err && err.message || err);
+    if (/unauthorized|Sign in/.test(msg)) { cfg = { url: '', key: '' }; save(LS.cfg, cfg); setSync('error', 'Sign in to sync'); }
+    else if (pending.length) setSync('queued', pending.length + ' queued');
+    else setSync('error', 'Offline');
+  } finally { syncing = false; if (pending.length && connected()) { clearTimeout(saveTimer); saveTimer = setTimeout(sync, 5000); } }
 }
 
 /* ---------- dialogs ---------- */
@@ -904,233 +748,58 @@ document.querySelectorAll('dialog').forEach(d => {
   d.addEventListener('cancel', e => { e.preventDefault(); closeDialog(d); });
   d.addEventListener('pointerdown', e => { if (e.target === d) closeDialog(d); });
 });
-$('#closeSheet').addEventListener('click', () => closeDialog($('#sheet')));
+const sheet = $('#sheet');
+$('#closeSheet').addEventListener('click', () => closeDialog(sheet));
 $('#closeConnect').addEventListener('click', () => closeDialog($('#connect')));
-
-/* ---------- log sheet ---------- */
-const sheet = $('#sheet'), codeInput = $('#codeInput'), logBtn = $('#logBtn');
-const meters = [];
-function buildMeters() {
-  const host = $('#meters');
-  [...new Set(SLOTS.map(s => s.group))].forEach(g => {
-    const groupHost = document.createElement('details'); groupHost.className = 'metric-group'; groupHost.open = g === 'Room' || matchMedia('(min-width:1000px)').matches; groupHost.innerHTML = `<summary>${g} <small>Tap to expand</small></summary>`; host.append(groupHost);
-    SLOTS.forEach((s, i) => {
-      if (s.group !== g) return;
-      const row = document.createElement('div');
-      row.className = 'mrow'; row.dataset.id = s.id;
-      row.innerHTML = `<div class="mtop"><span class="mname">${s.label}</span><span class="mval">–</span></div>
-        <div class="meter" role="slider" tabindex="0" aria-label="${s.label}" aria-valuemin="1" aria-valuemax="10">${Array.from({length:10},(_,n)=>'<i>'+ (n+1) +'</i>').join('')}</div>
-        <p class="mhint"></p>`;
-      groupHost.append(row);
-      const m = { row, el: row.querySelector('.meter'), val: row.querySelector('.mval'), hint: row.querySelector('.mhint'), cells: [...row.querySelectorAll('.meter i')] };
-      meters[i] = m;
-      if (OPTIONAL.has(s.id)) { const label=document.createElement('label'); label.className='na-control'; const cb=document.createElement('input');cb.type='checkbox';cb.dataset.na=s.id;label.append(cb,document.createTextNode('Not needed tomorrow'));cb.addEventListener('change',()=>{if(cb.checked){draftNA.add(s.id);setVal(i,10,{na:true});persistDraft()}else{draftNA.delete(s.id);setVal(i,null);persistDraft()} paintMeter(i)});row.append(label); }
-      const fromX = x => { const r = m.el.getBoundingClientRect(); return clamp(Math.ceil((x - r.left) / r.width * 10), 1, 10); };
-      let down = false, startX=0, startY=0, startValue=null, moved=false;
-      m.el.addEventListener('pointerdown', e => {
-        down=true; startX=e.clientX; startY=e.clientY; startValue=draft[i]; moved=false;
-        m.el.setPointerCapture(e.pointerId);
-      });
-      m.el.addEventListener('pointermove', e => {
-        if(!down) return;
-        if(Math.abs(e.clientX-startX)>8) moved=true;
-        if(moved && e.pointerType!=='touch') setVal(i,fromX(e.clientX));
-      });
-      m.el.addEventListener('pointerup', e => {
-        if(!down) return; down=false;
-        if(e.pointerType==='touch' && Math.abs(e.clientY-startY)>12) return;
-        const v=fromX(e.clientX); setVal(i,!moved && v===startValue ? null : v);
-      });
-      m.el.addEventListener('pointercancel',()=>{down=false});
-      m.el.addEventListener('keydown', e => {
-        const v = draft[i] ?? 0;
-        if (e.key === 'ArrowRight' || e.key === 'ArrowUp') setVal(i, v + 1);
-        else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') setVal(i, v - 1);
-        else if (e.key === 'Home') setVal(i, 1);
-        else if (e.key === 'End') setVal(i, 10);
-        else if (e.key === 'Backspace' || e.key === 'Delete') setVal(i, null);
-        else if (/^[0-9]$/.test(e.key)) { const n=e.key === '0'?10:Number(e.key);setVal(i,draft[i]===n?null:n); }
-        else return;
-        e.preventDefault();
-      });
-    });
-  });
-}
-function paintMeter(i) {
-  const m = meters[i], v = draft[i];
-  const cb=m.row.querySelector("[data-na]");if(cb)cb.checked=draftNA.has(SLOTS[i].id);
-  m.cells.forEach((c, k) => { c.classList.toggle('on', v != null && k < v); c.classList.toggle('last', lastVals[i] != null && k === lastVals[i] - 1); });
-  m.el.style.setProperty('--c', v != null ? col(v) : 'var(--faint)');
-  if (v != null) { m.el.setAttribute('aria-valuenow', v); m.el.removeAttribute('aria-valuetext'); } else { m.el.removeAttribute('aria-valuenow'); m.el.setAttribute('aria-valuetext', 'Not rated'); }
-  m.val.textContent = draftNA.has(SLOTS[i].id) ? 'N/A' : v ?? '–';
-  m.val.style.color = v != null ? col(v) : 'var(--faint)';
-  m.hint.textContent = draftNA.has(SLOTS[i].id) ? 'Excluded from your score for this check-in' : v == null ? anchorFor(SLOTS[i],10) : anchorFor(SLOTS[i], v);
-}
-function setVal(i, v, opts = {}) {
-  v = v == null ? null : clamp(v, 1, 10);
-  if (draft[i] === v) return;
-  if(!opts.na) draftNA.delete(SLOTS[i].id);
-  draft[i] = v; paintMeter(i);
-  if (!reduceMotion) meters[i].val.animate([{ transform: 'scale(1.4)' }, { transform: 'scale(1)' }], { duration: 320, easing: EASE });
-  if (!opts.noCode) syncCode();
-  updateLogBtn();
-  if(!opts.silent) persistDraft();
-}
-const complete = () => draft.every(v => v != null);
-function syncCode() { codeInput.value = complete() ? codeOf(draft) : ''; }
-function updateLogBtn() { logBtn.textContent='Done'; logBtn.removeAttribute('aria-disabled'); }
-function encodeDraft(values,na) {
-  const rated=values.reduce((mask,v,i)=>v==null?mask:mask+(2**i),0);
-  const excluded=[...OPTIONAL].reduce((mask,id,i)=>na.has(id)?mask+(2**i):mask,0);
-  return values.map(v=>v==null?'0':String(v-1)).join('')+String(rated).padStart(7,'0')+String(excluded).padStart(2,'0');
-}
-let saveTimer, lastInputAt=0;
-function persistDraft() {
-  const c=encodeDraft(draft,draftNA);
-  if(pending.at(-1)?.c===c || (!pending.length && confirmed.at(-1)?.c===c)) return;
-  const now=Math.max(Date.now(),lastInputAt+1);lastInputAt=now;
-  const excludedIds = Array.from(draftNA);
-  const details = { na: excludedIds };
-  const e = { t: new Date(now).toISOString(), s: 31, c: c, x: details };
-  pending.push(e);save(LS.pending,pending);rebuild();renderAll();
-  setSync('saving',connected()?'Saving…':'Sheet not connected');
-  clearTimeout(saveTimer);saveTimer=setTimeout(sync,250);
-}
-function openSheet(focusId, preset) {
-  if (!meters.length) buildMeters();
-  draftNA = new Set();
-  lastVals = SLOTS.map((_, i) => slotState(i).cur);
-  draft = preset ? preset.slice() : lastVals.slice();
-  const latest = entries.at(-1);
-  if(latest) draftNA=new Set(latest.x.na||[]); if(!preset && (!latest || dayKey(latest.ms)!==dayKey(Date.now()))) draft[SLOTS.findIndex(s=>s.id==='faith')]=null;
-  draftNA.forEach(id=>{draft[SLOTS.findIndex(s=>s.id===id)]=10});
-  SLOTS.forEach((_, i) => paintMeter(i));
-  syncCode(); updateLogBtn();
-  if (!sheet.open) openDialog(sheet);
-  setTimeout(() => {
-    if (focusId) {
-      const m = meters[SLOTS.findIndex(s => s.id === focusId)];
-      m.row.closest("details").open=true; m.row.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' }); m.el.focus({ preventScroll: true });
-    } else meters[0].el.focus();
-  }, 80);
-}
-/* Voice and keyboard dictation share the same preview and autosave path. */
-const voiceText=$('#voiceText'), voiceStatus=$('#voiceStatus'), voicePreview=$('#voicePreview'), voiceApply=$('#voiceApply');
-let recognition=null, voiceUpdates=[];
-function reviewVoice() {
- const result=PersonalSpaceVoice.parse(voiceText.value);
- voiceUpdates=result.updates;
- voicePreview.replaceChildren();
- for(const update of voiceUpdates) {
-  const slot=SLOTS.find(s=>s.id===update.id), row=document.createElement('li');
-  row.textContent=slot.label+': '+(update.na?'N/A':update.value==null?'Clear':update.value);
-  voicePreview.appendChild(row);
- }
- voiceStatus.textContent=result.warnings.join(' · ') || (voiceUpdates.length?'Ready to save '+voiceUpdates.length+' ratings.':'Say or type a metric and a score from 1 to 10.');
- voiceApply.disabled=!voiceUpdates.length;
-}
-voiceText.addEventListener('input',reviewVoice);
-voiceApply.addEventListener('click',()=>{
- for(const update of voiceUpdates) {
-  const i=SLOTS.findIndex(s=>s.id===update.id);
-  if(update.na) draftNA.add(update.id); else draftNA.delete(update.id);
-  setVal(i,update.value,{silent:true,na:update.na}); paintMeter(i);
- }
- syncCode();persistDraft();
- voiceStatus.textContent='Ratings applied. Check the sync indicator for Sheet confirmation.';
- voiceText.value='';voiceUpdates=[];voiceApply.disabled=true;
-});
-$('#voiceStart').addEventListener('click',()=>{
- const Speech=window.SpeechRecognition||window.webkitSpeechRecognition;
- if(!Speech){voiceStatus.textContent='Use your keyboard’s microphone to dictate into this field.';voiceText.focus();return;}
- if(recognition){recognition.stop();return;}
- const session=new Speech();recognition=session;
- session.lang='en-US';session.continuous=false;session.interimResults=false;
- session.onstart=()=>{voiceStatus.textContent='Listening…';$('#voiceStart').textContent='Stop listening';};
- session.onresult=event=>{voiceText.value=Array.from(event.results).filter(r=>r.isFinal).map(r=>r[0].transcript).join(' ');reviewVoice();};
- session.onerror=event=>{voiceStatus.textContent=event.error==='not-allowed'?'Microphone unavailable. Use keyboard dictation or type.':'Speech could not be recognized. Try again or use keyboard dictation.';};
- session.onend=()=>{recognition=null;$('#voiceStart').textContent='Speak ratings';};
- try{session.start();}catch(_){recognition=null;voiceStatus.textContent='Microphone unavailable. Use keyboard dictation or type.';}
-});
-sheet.addEventListener('close',()=>{if(recognition)recognition.abort();});
-
-codeInput.addEventListener('input', () => {
-  const digits = codeInput.value.replace(/\D/g, '').slice(0, SLOTS.length);
-  if (codeInput.value !== digits) codeInput.value = digits;
-  for (let i = 0; i < digits.length; i++) setVal(i, Number(digits[i]) + 1, { noCode: true });
-});
-codeInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
-sheet.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); submit(); } });
-$('#allTen').addEventListener('click', () => { SLOTS.forEach((_, i) => setVal(i, 10,{silent:true})); syncCode();persistDraft(); });
-$('#resetLast').addEventListener('click', () => {
-  draft = lastVals.slice(); draftNA.forEach(id=>{draft[SLOTS.findIndex(s=>s.id===id)]=10}); SLOTS.forEach((_, i) => paintMeter(i)); syncCode(); updateLogBtn();persistDraft();
-});
-logBtn.addEventListener('click', submit);
-$('#fab').addEventListener('click', () => openSheet());
+$('#logBtn').addEventListener('click', () => closeDialog(sheet));
+function openVoice() { if (!sheet.open) openDialog(sheet); setTimeout(() => $('#voiceText').focus(), 120); }
+$('#fab').addEventListener('click', openVoice);
 document.addEventListener('keydown', e => {
-  if ((e.key === 'l' || e.key === 'L') && !e.metaKey && !e.ctrlKey && !e.altKey && !document.querySelector('dialog[open]') && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); openSheet(); }
+  if ((e.key === 'l' || e.key === 'L') && !e.metaKey && !e.ctrlKey && !e.altKey && !document.querySelector('dialog[open]') && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); openVoice(); }
 });
 
-function submit() { closeDialog(sheet); }
+/* ---------- voice update ---------- */
+const voiceText = $('#voiceText'), voiceStatus = $('#voiceStatus'), voicePreview = $('#voicePreview'), voiceApply = $('#voiceApply');
+let recognition = null, voiceUpdates = [];
+function reviewVoice() {
+  const result = PersonalSpaceVoice.parse(voiceText.value);
+  voiceUpdates = result.updates;
+  voicePreview.replaceChildren();
+  for (const update of voiceUpdates) {
+    const item = ITEMS.find(i => i.id === update.id), row = document.createElement('li');
+    const b = document.createElement('b'); b.textContent = update.done ? 'done' : 'undone'; b.className = update.done ? 'ok' : 'undo';
+    row.append(document.createTextNode(item.name + ' '), b);
+    voicePreview.append(row);
+  }
+  voiceStatus.textContent = result.warnings.join(' · ') || (voiceUpdates.length ? 'Ready to save ' + voiceUpdates.length + (voiceUpdates.length === 1 ? ' update.' : ' updates.') : 'Say an item and "done", or "undo" to clear it.');
+  voiceApply.disabled = !voiceUpdates.length;
+}
+voiceText.addEventListener('input', reviewVoice);
+voiceApply.addEventListener('click', () => {
+  for (const update of voiceUpdates) queueEvent(update.id, update.done);
+  voiceStatus.textContent = 'Update applied. Check the sync indicator for Sheet confirmation.';
+  voiceText.value = ''; voiceUpdates = []; voiceApply.disabled = true; voicePreview.replaceChildren();
+});
+$('#voiceStart').addEventListener('click', () => {
+  const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!Speech) { voiceStatus.textContent = 'Use your keyboard’s microphone to dictate into this field.'; voiceText.focus(); return; }
+  if (recognition) { recognition.stop(); return; }
+  const session = new Speech(); recognition = session;
+  session.lang = 'en-US'; session.continuous = false; session.interimResults = false;
+  session.onstart = () => { voiceStatus.textContent = 'Listening…'; $('#voiceStart').textContent = 'Stop listening'; };
+  session.onresult = event => { voiceText.value = Array.from(event.results).filter(r => r.isFinal).map(r => r[0].transcript).join(' '); reviewVoice(); };
+  session.onerror = event => { voiceStatus.textContent = event.error === 'not-allowed' ? 'Microphone unavailable. Use keyboard dictation or type.' : 'Speech could not be recognized. Try again or use keyboard dictation.'; };
+  session.onend = () => { recognition = null; $('#voiceStart').textContent = 'Speak update'; };
+  try { session.start(); } catch (_) { recognition = null; voiceStatus.textContent = 'Microphone unavailable. Use keyboard dictation or type.'; }
+});
+sheet.addEventListener('close', () => { if (recognition) recognition.abort(); });
 
-/* ---------- toast ---------- */
-let toastTimer;
-function toast(msg) {
-  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
-}
-
-/* ---------- sync with Google Sheets ---------- */
-function setSync(state, msg) {
-  $('#syncBtn').dataset.state = state;
-  $('#syncText').textContent = msg || ({ local: 'Sheet not connected', ok: 'Saved to Sheet', saving: 'Saving…', queued: 'Waiting to sync', error: 'Not saved to Sheet' })[state];
-  $('#inputSync').textContent=$('#syncText').textContent;
-}
-async function api(params) {
-  if(managed) return new Promise((resolve,reject)=>google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).dashboardApi(params));
-  const u = new URL(cfg.url);
-  u.searchParams.set('key', cfg.key);
-  Object.keys(params).forEach(k => u.searchParams.set(k, params[k]));
-  const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 20000);
-  try {
-    const res = await fetch(u.toString(), { signal: ctl.signal, redirect: 'follow', cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    return await res.json();
-  } finally { clearTimeout(to); }
-}
-async function sync() {
-  if (!connected()) { setSync('error','Sign in to sync'); return; }
-  if (syncing) return;
-  syncing = true; setSync('saving');
-  try {
-    const r = await api({ action: 'list' });
-    if (!r.ok) throw new Error(r.error || 'list failed');
-    confirmed = r.rows.map(([t, s, c, x]) => ({ t, s: Number(s) || String(c).length, c: String(c), x: x || {} }));
-    const have = new Set(confirmed.map(e => e.t));
-    pending = pending.filter(e => !have.has(e.t));
-    for (const e of [...pending]) {
-      const w = await api({ action: 'add', t: e.t, schema: e.s, code: e.c, notes: JSON.stringify(e.x || {}) });
-      if (!w.ok) throw new Error(w.error || 'save failed');
-      pending = pending.filter(x => x.t !== e.t); confirmed.push(e);
-    }
-    save(LS.confirmed, confirmed); save(LS.pending, pending);
-    rebuild(); renderAll();
-    setSync(pending.length?'saving':'ok'); lastSyncAt = Date.now();
-  } catch (err) {
-    save(LS.confirmed, confirmed); save(LS.pending, pending); rebuild(); renderAll();
-    const msg = String(err && err.message || err);
-    if (/unauthorized|Sign in/.test(msg)) {cfg={url:'',key:''};save(LS.cfg,cfg);setSync('error','Sign in to sync');}
-    else if (pending.length) setSync('queued', pending.length + ' queued');
-    else setSync('error', 'Offline');
-  } finally { syncing = false; if(pending.length && connected()) {clearTimeout(saveTimer);saveTimer=setTimeout(sync,5000);} }
-}
-
-/* connect dialog */
+/* ---------- connect dialog ---------- */
 const connect = $('#connect');
 $('#googleSignIn').href = SHEET_APP + '?connect=1';
 $('#syncBtn').addEventListener('click', () => { if (connected()) sync(); else openDialog(connect); });
 $('#retryConnect').addEventListener('click', () => { closeDialog(connect); sync(); });
-window.addEventListener('hashchange',()=>{receiveConnection();sync();});
+window.addEventListener('hashchange', () => { receiveConnection(); sync(); });
 
 /* ---------- theme ---------- */
 $('#themeBtn').addEventListener('click', e => {
@@ -1160,37 +829,32 @@ document.querySelectorAll('.panel').forEach(p => {
 /* ---------- boot ---------- */
 function handleQuery() {
   const q = new URLSearchParams(location.search);
-  const c = q.get('c'), wantLog = q.has('log');
-  if (c == null && !wantLog) return;
+  if (!q.has('log')) return;
   history.replaceState(null, '', location.pathname);
-  if (c != null) {
-    const digits = c.replace(/\D/g, '').slice(0, SLOTS.length);
-    const d = SLOTS.map((_, i) => i < digits.length ? Number(digits[i]) + 1 : slotState(i).cur);
-    if (digits.length && d.every(v => v != null)) { draft = d; submit(); return; }
-    openSheet(null, d); return;
-  }
-  openSheet();
+  openVoice();
 }
 
-buildRing();
+buildCheck();
 receiveConnection();
 rebuild();
-setSync(connected()?'saving':'error',connected()?undefined:'Sheet not connected');
+setSync(connected() ? 'saving' : 'error', connected() ? undefined : 'Sheet not connected');
 requestAnimationFrame(() => {
   renderAll();
-  [seriesSeg, rangeSeg].forEach(s => movePill(s, true));
   handleQuery();
   sync();
 });
-if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => [seriesSeg, rangeSeg].forEach(s => movePill(s, true)));
-addEventListener('resize', () => [seriesSeg, rangeSeg].forEach(s => movePill(s, true)));
+setInterval(() => { renderNow(); }, 30000); // keep countdown badges fresh
 addEventListener('online', sync);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible') return;
-  renderHeader();
+  renderNow();
   if (Date.now() - lastSyncAt > 30000) sync();
 });
-setInterval(renderHeader, 60000);
+function buildCheck() {
+  // fail fast in development if markup and script drift apart
+  const need = ['todayLine', 'syncBtn', 'syncText', 'themeBtn', 'nowTitle', 'nowSub', 'nowList', 'weekGrid', 'weekSum', 'srSummary', 'fab', 'sheet', 'closeSheet', 'logBtn', 'voiceText', 'voiceStart', 'voiceApply', 'voicePreview', 'voiceStatus', 'voiceSync', 'connect', 'closeConnect', 'googleSignIn', 'retryConnect', 'toast'];
+  need.forEach(id => { if (!document.getElementById(id)) throw new Error('missing element #' + id); });
+}
 })();
 </script>
 </body>
