@@ -10,11 +10,11 @@ The dashboard tracks a weekly routine against deadlines instead of 1–10 scores
 
 Routine (all times America/New_York): weeknight prep Mon–Fri due 9:00 PM (water bottle filled in the fridge, drink/snack stocked, car charging); laundry pipeline Sat–Sun (started by Sun 12:00 PM, washed and dried, folded and put away by Sun 9:00 PM); verse + takeaway daily by 9:00 PM.
 
-The Ratings tab is a separate weekly review of the same 22 granular 1–10 metrics the dashboard tracked before the routine rebuild (room, space, car, tasks & habits, tomorrow prep) — same order, same codes, so old history stays comparable. Tap a number to rate, tap again to clear; mark a slot "Not needed" to exclude it from the score. It opens prefilled from your last check-in. Use it on Sundays with the reset, not daily — the routine tab owns the daily flow.
+The Ratings tab is a separate weekly review of the same 22 granular 1–10 metrics the dashboard tracked before the routine rebuild (room, space, car, tasks & habits, tomorrow prep) — same order, same codes, so old history stays comparable. It is the default landing tab. Tap a number to rate, tap again to clear; mark a slot "Not needed" to exclude it from the score. It opens prefilled from your last check-in. Use it on Sundays with the reset, not daily — the routine tab owns the daily flow.
 
 "Saved to Sheet" confirms a successful server response. Pending changes are queued during connection interruptions.
 
-Open Voice update (or press L). Say “water bottle done”, “laundry is all set for the week”, or “undo car charging”; review what was heard, then save. Commands support done/undo per item; unrecognized phrases are flagged, never silently applied. Browser speech recognition varies; keyboard dictation or typed commands work with the same parser. Browser speech services may process microphone audio. No AI API key is required.
+Open Voice update from the button at the bottom of the page (or press L). Say “water bottle done”, “laundry is all set for the week”, or “undo car charging”; review what was heard, then save. Commands support done/undo per item; unrecognized phrases are flagged, never silently applied. Browser speech recognition varies; keyboard dictation or typed commands work with the same parser. Browser speech services may process microphone audio. No AI API key is required.
 
 ## Editing from other AI tools
 
