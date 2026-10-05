@@ -26,7 +26,7 @@ function doGet(e) {
     if (!validDashboardKey_(p.key)) return out_({ ok: false, error: 'unauthorized' });
     const sh = getSheet_();
     if (p.action === 'add') return out_(addRow_(sh, p));
-    if (p.action === 'list') return out_(listRows_(sh));
+    if (p.action === 'list') return out_(listRows_(sh, p.since));
     return out_({ ok: true, ping: true });
   } catch (err) {
     return out_({ ok: false, error: String(err) });
@@ -62,14 +62,20 @@ function addRow_(sh, p) {
   }
 }
 
-function listRows_(sh) {
+function listRows_(sh, since) {
   const last = sh.getLastRow();
   if (last < 2) return { ok: true, rows: [] };
   const from = Math.max(2, last - MAX_ROWS_RETURNED + 1);
   const values = sh.getRange(from, 1, last - from + 1, 4).getValues();
-  const rows = values
+  let rows = values
     .filter(function (r) { return r[0] !== '' && r[2] !== ''; })
     .map(function (r) { let details = {}; try { details = JSON.parse(r[3] || '{}'); } catch (_) {} return [toIso_(r[0]), Number(r[1]) || 0, String(r[2]), details]; });
+  // Optional ISO-UTC lower bound keeps responses small for status checks.
+  // toIso_ always emits the same UTC format, so lexicographic compare works.
+  if (since && /^\d{4}-\d{2}-\d{2}T/.test(String(since))) {
+    const s = String(since);
+    rows = rows.filter(function (r) { return r[0] >= s; });
+  }
   return { ok: true, rows: rows };
 }
 
@@ -123,7 +129,7 @@ function dashboardPage_() {
 function dashboardApi(p) {
   requireDashboardOwner_();
   const sh = getSheet_();
-  if (p.action === 'list') return listRows_(sh);
+  if (p.action === 'list') return listRows_(sh, p.since);
   if (p.action === 'add') return addRow_(sh,p);
   return {ok:false,error:'Unknown action'};
 }
