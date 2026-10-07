@@ -8,9 +8,9 @@ The interface runs on GitHub Pages. On a new device, click the sync indicator, S
 
 The dashboard tracks a weekly routine against deadlines instead of 1–10 scores. Each item shows a live countdown ("due in 2h", "overdue 30m"); tap it to mark done, tap again to undo. Statuses are done on time, done late, missed, or upcoming, and each item carries its streak of consecutive on-time days. The week view shows seven days of dots per item for at-a-glance accountability.
 
-Routine (all times America/New_York): weeknight prep Mon–Fri due 9:00 PM (water bottle filled in the fridge, drink/snack stocked, car charging); laundry pipeline Sat–Sun (started by Sun 12:00 PM, washed and dried, folded and put away by Sun 9:00 PM); verse + takeaway daily by 9:00 PM.
+Routine (all times America/New_York): weeknight prep Mon–Fri due 11:00 PM (water bottle filled in the fridge, drink/snack stocked, car charging); laundry pipeline Sat–Sun (started by Sun 12:00 PM, washed and dried, folded and put away by Sun 9:00 PM); verse + takeaway daily by 11:00 PM.
 
-The Ratings tab is a separate weekly review of the same 22 granular 1–10 metrics the dashboard tracked before the routine rebuild (room, space, car, tasks & habits, tomorrow prep) — same order, same codes, so old history stays comparable. It is the default landing tab. Tap a number to rate, tap again to clear; mark a slot "Not needed" to exclude it from the score. It opens prefilled from your last check-in. Use it on Sundays with the reset, not daily — the routine tab owns the daily flow.
+The dashboard is a single page: Today's routine, the Week grid, and the Ratings meters are stacked sections under one scroll, with a sticky section-jump nav on mobile and desktop. The Ratings meters (the same 22 granular 1–10 metrics the dashboard tracked before the routine rebuild — room, space, car, tasks & habits, tomorrow prep — same order, same codes, so old history stays comparable) sit in the Ratings section below the week view. Tap a number to rate, tap again to clear; mark a slot "Not needed" to exclude it from the score. The section opens prefilled from your last check-in. Use it on Sundays with the reset, not daily — the routine section owns the daily flow.
 
 "Saved to Sheet" confirms a successful server response. Pending changes are queued during connection interruptions.
 
@@ -22,7 +22,20 @@ Give your GitHub-connected AI access to this repository. Edit index.html on main
 
 ## Backend
 
-Code.gs is bound to the private Sheet. Owner-only web app sign-in issues an expiring session. The session is transferred in a URL fragment, removed from the address immediately and retained on the device. The existing key-protected API validates session expiration server-side. Unknown and expired credentials cannot read/write scores. The owner-only connection deployment remains Only myself, executing as Me. The existing public API still requires a valid key. Backend changes require updating both deployments to the same version; GitHub Pages only deploys frontend changes. Current backend version: 5 — no backend change was needed for the routine model; the generic add/list API carries schema-40 events.
+Code.gs is bound to the private Sheet. Owner-only web app sign-in issues an expiring session. The session is transferred in a URL fragment, removed from the address immediately and retained on the device. The existing key-protected API validates session expiration server-side. Unknown and expired credentials cannot read/write scores. The owner-only connection deployment remains Only myself, executing as Me. The existing public API still requires a valid key. Backend changes require updating both deployments to the same version; GitHub Pages only deploys frontend changes. Current backend version: 6 — adds `action=status` and the `since` filter to the keyed API.
+
+## Keyed API contract (for other web apps)
+
+The keyed deployment (`API_APP` in index.html) is the feed other apps read. Base: the deployment's `/exec` URL, GET with query params, JSON responses. Every request carries `key=<secret>` (Script Properties `SECRET`, or a 7-day session token from the connect flow). The contract is additive-only: new fields may appear, old ones never change meaning. `ping` returns the current `api` version string and `actions` list for feature detection.
+
+- `ping` — `{ok:true, ping:true, api:"2026-10-05", actions:["list","add","status","ping"]}`
+- `list` — raw event log, newest-last: `{ok, rows:[[iso_utc_ts, schema, code, details]]}`. Optional `since=ISO-UTC` lower bound keeps reads small (exact string compare on UTC timestamps).
+- `add` — append one event: `t=ISO-UTC`, `schema=40`, `code=<1-7>`, `notes={"na":["done"]}` or `{"na":[]}`. Returns `{ok:true}` (or `duplicate:true` within the dedupe window). Only `na` survives server-side sanitizing.
+- `status` — derived per-item state for one ET day, as of now: `{ok, api, date:"YYYY-MM-DD", asOf, items:[{id, name, scheduled, due, state, lastEvent}]}`. Optional `date=YYYY-MM-DD` (ET, default today) and `asOf=ISO-UTC`. States mirror the dashboard exactly: `ontime | late | done (no deadline) | missed | upcoming`, plus `off` for items not scheduled that day. **This is the read aggregators should use** — no client state machine needed, and the 7-day internal `since` keeps it small. Only synced rows count; taps queued offline appear after the next sync.
+
+Item ids: 1 water bottle, 2 drink/snack, 3 car charging (Mon–Fri, due 11 PM ET), 4 laundry started (weekend, due Sun 12 PM ET), 5 washed & dried (weekend, no hard deadline), 6 folded & put away (weekend, due Sun 9 PM ET), 7 verse + takeaway (daily, due 11 PM ET). Cycle windows: weekday items run midnight-to-midnight ET; weekend items run Saturday 00:00 ET to Sunday 24:00 ET. A 30-minute grace past the deadline still reads `upcoming`.
+
+Design note for future Sheet apps: expose the same minimal contract (`ping` with `api`/`actions`, `list` with `since`, and a derived `status`) under the app's own key. The aggregator then needs only one fetch pattern per app.
 
 ## Data compatibility
 
