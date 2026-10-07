@@ -78,13 +78,13 @@ button { font: inherit; color: inherit; }
 @keyframes drift2 { to { transform: translate3d(-12vmax, -8vmax, 0) scale(.92); } }
 @keyframes drift3 { to { transform: translate3d(10vmax, -12vmax, 0) scale(1.1); } }
 
-.wrap { width: min(880px, 100%); margin: 0 auto; padding: calc(22px + env(safe-area-inset-top)) 20px calc(130px + env(safe-area-inset-bottom)); }
+.wrap { width: min(760px, 100%); margin: 0 auto; padding: calc(26px + env(safe-area-inset-top)) 20px calc(56px + env(safe-area-inset-bottom)); }
 
-.top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
-h1 { font-size: clamp(26px, 4vw, 32px); font-weight: 600; letter-spacing: -.03em; }
-#todayLine { color: var(--muted); font-size: 14px; margin-top: 2px; }
+.hero { text-align: center; margin: 4px 0 6px; }
+h1 { font-size: clamp(28px, 4.5vw, 34px); font-weight: 600; letter-spacing: -.03em; }
+#todayLine { color: var(--muted); font-size: 14px; margin-top: 4px; }
 #todayLine .over { color: var(--miss); font-weight: 600; }
-.tools { display: flex; align-items: center; gap: 8px; }
+.toolbar { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; }
 .sync, .icon {
   all: unset; box-sizing: border-box; cursor: pointer; border: 1px solid var(--line); background: var(--panel);
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-radius: 99px; transition: background .15s, border-color .15s;
@@ -168,11 +168,12 @@ h1 { font-size: clamp(26px, 4vw, 32px); font-weight: 600; letter-spacing: -.03em
 .wsum b { color: var(--text); font-variant-numeric: tabular-nums; }
 @media (max-width: 520px) { .wgrid { grid-template-columns: 64px repeat(7, 1fr); } .wgrid .rlab { font-size: 11px; } }
 
-/* ---------- view tabs ---------- */
-.tabs { display: flex; gap: 6px; padding: 4px; margin: 0 0 16px; border: 1px solid var(--line); background: var(--panel); border-radius: 99px; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
-.tab { all: unset; box-sizing: border-box; flex: 1; text-align: center; padding: 11px 0; border-radius: 99px; font-weight: 600; font-size: 14.5px; color: var(--muted); cursor: pointer; transition: background .15s, color .15s; min-height: 48px; }
-.tab.on { background: var(--text); color: var(--bg); }
-.tab:focus-visible { outline: 2px solid hsl(var(--glow-h) 80% 62%); outline-offset: 3px; }
+/* ---------- one-page section nav ---------- */
+.jump { position: sticky; top: calc(10px + env(safe-area-inset-top)); z-index: 20; display: flex; justify-content: center; margin: 16px 0 2px; }
+.jump .pill { display: flex; gap: 2px; padding: 4px; border: 1px solid var(--line); background: var(--panel); border-radius: 99px; backdrop-filter: blur(18px) saturate(1.2); -webkit-backdrop-filter: blur(18px) saturate(1.2); box-shadow: var(--shadow); }
+.jump a { all: unset; box-sizing: border-box; display: grid; place-items: center; padding: 9px 22px; border-radius: 99px; font-weight: 600; font-size: 14px; color: var(--muted); cursor: pointer; min-height: 44px; transition: background .2s, color .2s; }
+.jump a.on { background: var(--text); color: var(--bg); }
+.jump a:focus-visible { outline: 2px solid hsl(var(--glow-h) 80% 62%); outline-offset: 3px; }
 
 /* ---------- ratings view ---------- */
 .rate { padding: 22px 18px 16px; }
@@ -257,11 +258,24 @@ dialog.open .sheet { transform: none; }
 .toast { position: fixed; z-index: 40; left: 50%; bottom: calc(92px + env(safe-area-inset-bottom)); transform: translate(-50%, 24px); opacity: 0; padding: 12px 18px; border-radius: 99px; font-size: 14px; font-weight: 520; background: var(--sheet-bg); border: 1px solid var(--line-2); box-shadow: var(--shadow); pointer-events: none; transition: transform .15s, opacity .15s; max-width: calc(100vw - 32px); text-align: center; }
 .toast.show { transform: translate(-50%, 0); opacity: 1; }
 
+/* ---------- one-page: centered minimal ---------- */
+html { scroll-behavior: smooth; }
+.panel { scroll-margin-top: 96px; }
+.sec { margin-top: 22px; }
+.now h2, .week h2, .rate h2 { text-align: center; }
+.now .sub, .week .sub, .rate .sub { text-align: center; }
+.rscore { justify-content: center; }
+.rlast, .wsum { text-align: center; }
+.sec-head { justify-content: center; }
+.reveal { opacity: 0; transform: translateY(16px); transition: opacity .55s var(--ease), transform .55s var(--ease); }
+.reveal.in { opacity: 1; transform: none; }
+
 ::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
 ::view-transition-old(root) { z-index: 1; }
 ::view-transition-new(root) { z-index: 2; }
 
 @media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; transition-delay: 0ms !important; }
 }
 </style>
@@ -270,12 +284,10 @@ dialog.open .sheet { transform: none; }
 <div class="aura" aria-hidden="true"><i></i><i></i><i></i></div>
 
 <main class="wrap">
-  <header class="top">
-    <div>
-      <h1>Personal space</h1>
-      <p id="todayLine">Loading</p>
-    </div>
-    <div class="tools">
+  <header class="hero">
+    <h1>Personal space</h1>
+    <p id="todayLine">Loading</p>
+    <div class="toolbar">
       <button class="sync" id="syncBtn" data-state="local" aria-label="Sheet sync status"><span class="dot"></span><span id="syncText">Local only</span></button>
       <button class="icon" id="themeBtn" aria-label="Switch theme">
         <svg class="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
@@ -284,27 +296,28 @@ dialog.open .sheet { transform: none; }
     </div>
   </header>
 
-  <div class="tabs" role="tablist" aria-label="Views">
-    <button type="button" class="tab" id="tabRoutine" role="tab" aria-selected="false">Routine</button>
-    <button type="button" class="tab on" id="tabRatings" role="tab" aria-selected="true">Ratings</button>
-  </div>
+  <nav class="jump" id="jumpNav" aria-label="Sections">
+    <div class="pill">
+      <a href="#sec-today" data-sec="sec-today" class="on">Today</a>
+      <a href="#sec-week" data-sec="sec-week">Week</a>
+      <a href="#sec-review" data-sec="sec-review">Ratings</a>
+    </div>
+  </nav>
 
-  <div id="viewRoutine" hidden>
-  <section class="panel now" aria-label="Tonight's routine">
-    <h2 id="nowTitle">Now</h2>
+  <section class="panel now sec" id="sec-today" aria-label="Today's routine">
+    <h2 id="nowTitle">Today</h2>
     <p class="sub" id="nowSub"></p>
     <div id="nowList"></div>
   </section>
 
-  <section class="panel week" aria-label="This week">
+  <section class="panel week sec" id="sec-week" aria-label="This week">
     <h2>Week</h2>
     <p class="sub">Seven days at a glance. Dots show each day's outcome per item.</p>
     <div class="wgrid" id="weekGrid"></div>
     <p class="wsum" id="weekSum"></p>
   </section>
-  </div><!-- /viewRoutine -->
-  <div id="viewRatings">
-    <section class="panel rate" aria-label="Ratings">
+
+  <section class="panel rate sec" id="sec-review" aria-label="Ratings">
       <h2>Ratings</h2>
       <p class="sub">Weekly review &mdash; rate the state of everything 1&ndash;10. Pairs well with the Sunday reset.</p>
       <div class="rscore"><b id="rOverall">&ndash;</b><span>overall</span></div>
@@ -315,7 +328,6 @@ dialog.open .sheet { transform: none; }
         <button class="btn primary" id="rSave" type="button">Log ratings</button>
       </div>
     </section>
-  </div>
   <button class="voice-cta" id="fab" aria-label="Voice update">
     <svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></svg><span>Voice update</span>
   </button>
@@ -434,13 +446,13 @@ if (typeof module !== 'undefined') module.exports = root.PersonalSpaceVoice;
 
 /* ---------- routine items (schema 40). ids are the Sheet "code" values. ---------- */
 const ITEMS = [
-  { id: 1, name: 'Water bottle',        detail: 'Filled and in the fridge',        days: [1,2,3,4,5],   dueH: 21, dueM: 0 },
-  { id: 2, name: 'Drink / snack',       detail: 'Energy drink or snack stocked',   days: [1,2,3,4,5],   dueH: 21, dueM: 0 },
-  { id: 3, name: 'Car charging',        detail: 'Plugged in for the morning',     days: [1,2,3,4,5],   dueH: 21, dueM: 0 },
+  { id: 1, name: 'Water bottle',        detail: 'Filled and in the fridge',        days: [1,2,3,4,5],   dueH: 23, dueM: 0 },
+  { id: 2, name: 'Drink / snack',       detail: 'Energy drink or snack stocked',   days: [1,2,3,4,5],   dueH: 23, dueM: 0 },
+  { id: 3, name: 'Car charging',        detail: 'Plugged in for the morning',     days: [1,2,3,4,5],   dueH: 23, dueM: 0 },
   { id: 4, name: 'Laundry started',     detail: "Week's laundry in the wash",     days: [0,6],         dueH: 12, dueM: 0, dueWd: 0 },
   { id: 5, name: 'Washed & dried',      detail: 'Through the dryer',               days: [0,6],         dueH: null },
   { id: 6, name: 'Folded & put away',   detail: 'Ready for the week',              days: [0,6],         dueH: 21, dueM: 0, dueWd: 0 },
-  { id: 7, name: 'Verse + takeaway',    detail: "Today's verse read, takeaway in mind", days: [0,1,2,3,4,5,6], dueH: 21, dueM: 0 },
+  { id: 7, name: 'Verse + takeaway',    detail: "Today's verse read, takeaway in mind", days: [0,1,2,3,4,5,6], dueH: 23, dueM: 0 },
 ];
 const SHORT = { 1: 'Water', 2: 'Snack', 3: 'Car', 4: 'Started', 5: 'Washed', 6: 'Folded', 7: 'Verse' };
 const GRACE_MS = 30 * 60 * 1000;
@@ -848,7 +860,6 @@ let rLastVals = SLOTS.map(() => null);
 let rMeters = [];
 let rBuilt = false;
 let rDirty = false;
-let rView = 'ratings';
 
 /* verbatim read protocol from the original dashboard. Schema-40 routine
    events are skipped: they are not ratings. */
@@ -997,22 +1008,12 @@ function rSave() {
   rInitDraft(); rRender();
   toast('Ratings logged');
 }
-function showView(v) {
-  rView = v;
-  $('#tabRoutine').classList.toggle('on', v === 'routine');
-  $('#tabRatings').classList.toggle('on', v === 'ratings');
-  $('#tabRoutine').setAttribute('aria-selected', String(v === 'routine'));
-  $('#tabRatings').setAttribute('aria-selected', String(v === 'ratings'));
-  $('#viewRoutine').hidden = v !== 'routine';
-  $('#viewRatings').hidden = v !== 'ratings';
-  if (v === 'ratings') {
-    if (!rBuilt) { rBuildMeters(); rBuilt = true; }
-    if (!rDirty) rInitDraft();
-    rRender();
-  }
+/* one page: every section is always visible, so the meters build on boot. */
+function buildRatings() {
+  if (!rBuilt) { rBuildMeters(); rBuilt = true; }
+  if (!rDirty) rInitDraft();
+  rRender();
 }
-$('#tabRoutine').addEventListener('click', () => showView('routine'));
-$('#tabRatings').addEventListener('click', () => showView('ratings'));
 $('#rSave').addEventListener('click', rSave);
 
 function renderAll() {
@@ -1166,6 +1167,25 @@ document.querySelectorAll('.panel').forEach(p => {
   });
 });
 
+/* ---------- one-page: scroll reveal + section nav scrollspy ----------
+   Transform/opacity-only, never reflows content. No-JS keeps everything
+   visible (the .reveal class is only added when JS runs). */
+const jumpNav = $('#jumpNav');
+const jumpLinks = jumpNav ? [...jumpNav.querySelectorAll('a')] : [];
+const pageSections = ['sec-today', 'sec-week', 'sec-review'].map(id => document.getElementById(id)).filter(Boolean);
+if ('IntersectionObserver' in window && pageSections.length) {
+  pageSections.forEach(s => s.classList.add('reveal'));
+  const reveal = new IntersectionObserver(es => es.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('in'); reveal.unobserve(e.target); }
+  }), { threshold: .06 });
+  pageSections.forEach(s => reveal.observe(s));
+  const spy = new IntersectionObserver(es => es.forEach(e => {
+    if (e.isIntersecting) jumpLinks.forEach(a => a.classList.toggle('on', a.dataset.sec === e.target.id));
+  }), { rootMargin: '-38% 0px -56% 0px' });
+  pageSections.forEach(s => spy.observe(s));
+  jumpLinks.forEach(a => a.addEventListener('click', () => jumpLinks.forEach(x => x.classList.toggle('on', x === a))));
+}
+
 /* ---------- boot ---------- */
 function handleQuery() {
   const q = new URLSearchParams(location.search);
@@ -1180,7 +1200,7 @@ rebuild();
 setSync(connected() ? 'saving' : 'error', connected() ? undefined : 'Sheet not connected');
 requestAnimationFrame(() => {
   renderAll();
-  showView('ratings'); // default landing tab; builds meters on first run
+  buildRatings(); // one page: meters build on boot alongside the routine
   handleQuery();
   sync();
 });
@@ -1193,7 +1213,7 @@ document.addEventListener('visibilitychange', () => {
 });
 function buildCheck() {
   // fail fast in development if markup and script drift apart
-  const need = ['todayLine', 'syncBtn', 'syncText', 'themeBtn', 'nowTitle', 'nowSub', 'nowList', 'weekGrid', 'weekSum', 'srSummary', 'fab', 'sheet', 'closeSheet', 'logBtn', 'voiceText', 'voiceStart', 'voiceApply', 'voicePreview', 'voiceStatus', 'voiceSync', 'connect', 'closeConnect', 'googleSignIn', 'retryConnect', 'toast', 'tabRoutine', 'tabRatings', 'viewRoutine', 'viewRatings', 'rOverall', 'rLast', 'rGroups', 'rSave', 'rSyncMsg'];
+  const need = ['todayLine', 'syncBtn', 'syncText', 'themeBtn', 'jumpNav', 'sec-today', 'sec-week', 'sec-review', 'nowTitle', 'nowSub', 'nowList', 'weekGrid', 'weekSum', 'srSummary', 'fab', 'sheet', 'closeSheet', 'logBtn', 'voiceText', 'voiceStart', 'voiceApply', 'voicePreview', 'voiceStatus', 'voiceSync', 'connect', 'closeConnect', 'googleSignIn', 'retryConnect', 'toast', 'rOverall', 'rLast', 'rGroups', 'rSave', 'rSyncMsg'];
   need.forEach(id => { if (!document.getElementById(id)) throw new Error('missing element #' + id); });
 }
 })();
