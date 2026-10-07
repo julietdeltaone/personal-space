@@ -7,13 +7,13 @@ User intent: this public GitHub repository is the shared code home for any autho
 The dashboard is a deadline-driven routine tracker, not a 1-10 metrics scorer.
 
 - 7 routine items, each with a weekly schedule and deadline (America/New_York):
-  1. Water bottle — Mon–Fri — due 21:00 — "Filled and in the fridge"
-  2. Drink / snack — Mon–Fri — due 21:00
-  3. Car charging — Mon–Fri — due 21:00 — "Plugged in"
+  1. Water bottle — Mon–Fri — due 23:00 — "Filled and in the fridge"
+  2. Drink / snack — Mon–Fri — due 23:00
+  3. Car charging — Mon–Fri — due 23:00 — "Plugged in"
   4. Laundry started — Sat–Sun — due Sun 12:00
   5. Laundry washed & dried — Sat–Sun — no hard deadline, follows item 4
   6. Laundry folded & put away — Sat–Sun — due Sun 21:00
-  7. Verse + takeaway — daily — due 21:00
+  7. Verse + takeaway — daily — due 23:00
 - Protocol: `action=add` with `t`=ISO UTC timestamp, `schema=40`, `code`=item id ("1"–"7"), `notes={"na":["done"]}` for done or `{"na":[]}` for undone. Latest event per item per cycle wins; second tap undoes.
 - IMPORTANT backend constraint: the deployed Code.gs sanitizes the Details column to `{na:[...]}` only — any extra key (e.g. `state`) is silently dropped server-side and never comes back on `list`. State is therefore encoded in `na` (`"done"` present = done, empty = undone/cleared). Do NOT write a `state` key expecting it to persist.
 - Status per scheduled day: done on time (at/before deadline), late (after), missed (past deadline + 30 min grace with no done event), upcoming. Streaks count consecutive on-time scheduled days.
@@ -34,11 +34,12 @@ A secondary tab next to the routine home, framed as a weekly review (pairs with 
 
 - Edit index.html for layout, wording and interaction changes. Main publishes automatically to GitHub Pages.
 - Preserve instant tap input, second-tap undo, the offline pending queue, voice input with review-before-save (never silently invent updates), compact mobile controls (min 56px targets), and accurate Sheet sync status.
-- Default landing tab is Ratings (rView='ratings', showView('ratings') on boot builds the meters). The tab switcher is untouched.
+- One page, no tabs (2026-10-06): Today, Week and Ratings are stacked sections on a single scrollable page with a sticky section-jump nav (Today / Week / Ratings) + scrollspy. The meters build on boot alongside the routine. Preserve the in-place tap repaint, the 30s ticker, sync soft-refresh rules and the ≤150ms interactive-transition rule; scroll reveal is transform/opacity-only (not interactive) and respects prefers-reduced-motion.
 - The voice button is a static, unobtrusive in-flow button at the bottom of the page content (`.voice-cta`, id `fab`) — never floating/fixed. It opens the same voice sheet; the `nudge` ring still highlights it when items are overdue.
 - No-jump rules (2026-10-04): tapping a routine item updates that row in place (`paintTaskRow`) — sections re-sort only on the next tick/visibility render, never mid-tap. The 30s ticker (`tick`) refreshes countdown badges in place and re-sorts only if an item actually crossed a section boundary. Sync completion does a soft refresh (tick + week + ratings), never a full re-render; sync failure does not re-render at all. All interactive transitions are transform/opacity-only and ≤150ms; countdown badges have tabular-nums + min-width so text updates don't reflow.
 - Keep credentials out of this public repository. Do not widen Google Sheet or Apps Script permissions.
 - Code.gs changes are not deployed by GitHub Pages. If a backend change is ever needed, update BOTH Apps Script deployments to the same version and verify live saving. Keep the connection deployment Only myself and the keyed API session tokens protected. Preserve owner identity checks, server-side token expiry, and credential-free public source.
 - The two exec URLs in index.html have fixed roles: `SHEET_APP` (owner-only deployment) issues 7-day session tokens via the connect flow; `API_APP` (keyed deployment) serves list/add with a valid token. Do not swap them.
+- Feed-ready contract (2026-10-05): the keyed API is the read surface other web apps use, so keep it additive-only — new actions/fields may be added, existing ones never change meaning. `ping` carries `api` (version string) and `actions` for feature detection; `list` keeps the `since` lower bound; `status` returns derived per-item state for one ET day (mirrors `itemStatus()` in index.html — if the routine model changes, update BOTH). All ET date math in Code.gs hardcodes America/New_York via `etMs_`/`etParts_` so DST is exact regardless of the script's own timezone setting. Design note for future Sheet apps: each app should expose the same minimal contract (`ping` with api/actions, `list` with since, derived `status`) under its own key — then the eventual aggregator needs one fetch pattern per app.
 - Distinguish editing app code from recording scores. An outside AI needs separately authorized Sheet/API access to update data.
 - Verify syntax and affected behavior. After deploy, verify the URL stays on GitHub Pages and the sync indicator reflects a successful server response.
