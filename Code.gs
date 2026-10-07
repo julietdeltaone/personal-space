@@ -9,6 +9,26 @@ const HEADERS = ['Timestamp', 'Schema', 'Code', 'Details'];
 const MAX_ROWS_RETURNED = 2000;
 const DEDUPE_WINDOW = 60;
 
+// Feed-ready API marker. Bump when the keyed contract gains actions or fields.
+// Contract is additive-only: old clients keep working.
+const API_VERSION = '2026-10-05';
+const API_ACTIONS = ['list', 'add', 'status', 'ping'];
+const TZ = 'America/New_York'; // JD's timezone; the dashboard derives state in ET.
+const GRACE_MS = 30 * 60 * 1000; // matches the dashboard: 30 min past due stays "upcoming"
+
+// Routine catalog. Mirrors index.html ITEMS so server-side status matches the
+// dashboard exactly. id 1-7, days: 0=Sun..6=Sat, dueWd: deadline weekday for
+// weekend-cycle items (cycle starts Saturday 00:00 ET).
+const ROUTINE_ITEMS = [
+  { id: 1, name: 'Water bottle',     days: [1,2,3,4,5], dueH: 23, dueM: 0 },
+  { id: 2, name: 'Drink / snack',    days: [1,2,3,4,5], dueH: 23, dueM: 0 },
+  { id: 3, name: 'Car charging',     days: [1,2,3,4,5], dueH: 23, dueM: 0 },
+  { id: 4, name: 'Laundry started',  days: [0,6],       dueH: 12, dueM: 0, dueWd: 0 },
+  { id: 5, name: 'Washed & dried',   days: [0,6],       dueH: null },
+  { id: 6, name: 'Folded & put away',days: [0,6],       dueH: 21, dueM: 0, dueWd: 0 },
+  { id: 7, name: 'Verse + takeaway', days: [0,1,2,3,4,5,6], dueH: 23, dueM: 0 }
+];
+
 function setup() {
   ScriptApp.requireAllScopes(ScriptApp.AuthMode.FULL);
   const props = PropertiesService.getScriptProperties();
@@ -27,7 +47,8 @@ function doGet(e) {
     const sh = getSheet_();
     if (p.action === 'add') return out_(addRow_(sh, p));
     if (p.action === 'list') return out_(listRows_(sh, p.since));
-    return out_({ ok: true, ping: true });
+    if (p.action === 'status') return out_(statusFor_(sh, p));
+    return out_({ ok: true, ping: true, api: API_VERSION, actions: API_ACTIONS });
   } catch (err) {
     return out_({ ok: false, error: String(err) });
   }
@@ -130,8 +151,132 @@ function dashboardApi(p) {
   requireDashboardOwner_();
   const sh = getSheet_();
   if (p.action === 'list') return listRows_(sh, p.since);
+  if (p.action === 'status') return statusFor_(sh, p);
   if (p.action === 'add') return addRow_(sh,p);
   return {ok:false,error:'Unknown action'};
+}
+
+/* ---------- feed-ready status ---------- */
+/* Derived per-item state for one ET date, as of asOfMs. Mirrors the dashboard's
+   itemStatus() exactly so any web app gets the same answers without re-running
+   the state machine. Optional params: date=YYYY-MM-DD (ET, default today),
+   asOf=ISO-UTC (default now). Note: only synced rows count; unsynced taps
+   queued in the dashboard are not visible until the next sync. */
+function pad2_(n) { return (n < 10 ? '0' : '') + n; }
+
+function etParts_(ms) {
+  const d = new Date(ms);
+  const u = Number(Utilities.formatDate(d, TZ, 'u')); // 1=Mon..7=Sun
+  return {
+    y: Number(Utilities.formatDate(d, TZ, 'yyyy')),
+    mo: Number(Utilities.formatDate(d, TZ, 'MM')),
+    d: Number(Utilities.formatDate(d, TZ, 'dd')),
+    wd: u === 7 ? 0 : u
+  };
+}
+
+/* UTC ms of an ET wall-clock time. Refines via formatDate so DST is exact. */
+function etMs_(y, mo, d, h, mi) {
+  const want = Date.UTC(y, mo - 1, d, h || 0, mi || 0); // wall string read as UTC
+  let guess = want - 4 * 36e5; // ET is UTC-4/5; one pass converges either way
+  for (let i = 0; i < 3; i++) {
+    const shown = Utilities.formatDate(new Date(guess), TZ, "yyyy-MM-dd'T'HH:mm");
+    const offset = guess - Date.parse(shown + ':00Z');
+    guess = want + offset;
+  }
+  return guess;
+}
+
+function nextDay_(y, mo, d) {
+  const dt = new Date(Date.UTC(y, mo - 1, d) + 864e5);
+  return { y: dt.getUTCFullYear(), mo: dt.getUTCMonth() + 1, d: dt.getUTCDate() };
+}
+
+function deadlineFor_(item, y, mo, d, wd) {
+  if (item.dueH == null) return null;
+  let ty = y, tm = mo, td = d;
+  if (item.dueWd != null) {
+    const add = (item.dueWd - wd + 7) % 7;
+    const dt = new Date(Date.UTC(y, mo - 1, d) + add * 864e5);
+    ty = dt.getUTCFullYear(); tm = dt.getUTCMonth() + 1; td = dt.getUTCDate();
+  }
+  return etMs_(ty, tm, td, item.dueH, item.dueM);
+}
+
+function cycleStartFor_(item, y, mo, d, wd) {
+  let ty = y, tm = mo, td = d;
+  if (item.dueWd != null) { // weekend cycle starts Saturday 00:00 ET
+    const back = (wd - 6 + 7) % 7;
+    const dt = new Date(Date.UTC(y, mo - 1, d) - back * 864e5);
+    ty = dt.getUTCFullYear(); tm = dt.getUTCMonth() + 1; td = dt.getUTCDate();
+  }
+  return etMs_(ty, tm, td, 0, 0);
+}
+
+function isDone_(details) {
+  return details && Array.isArray(details.na) && details.na.indexOf('done') !== -1;
+}
+
+function statusFor_(sh, p) {
+  const nowMs = Date.now();
+  let asOf = nowMs;
+  if (p.asOf && /^\d{4}-\d{2}-\d{2}T/.test(String(p.asOf))) {
+    const t = Date.parse(p.asOf);
+    if (!isNaN(t) && t <= nowMs) asOf = t;
+  }
+  let y, mo, d, wd;
+  const ep = etParts_(asOf);
+  y = ep.y; mo = ep.mo; d = ep.d; wd = ep.wd;
+  if (p.date && /^\d{4}-\d{2}-\d{2}$/.test(String(p.date))) {
+    const dp = String(p.date).split('-');
+    y = +dp[0]; mo = +dp[1]; d = +dp[2];
+    wd = new Date(Date.UTC(y, mo - 1, d)).getUTCDay();
+  }
+  const dateStr = y + '-' + pad2_(mo) + '-' + pad2_(d);
+  // A week of history covers weekend cycles; listRows_ stays small via since.
+  const since = new Date(etMs_(y, mo, d, 0, 0) - 7 * 864e5).toISOString();
+  const rows = (listRows_(sh, since).rows) || [];
+  const items = ROUTINE_ITEMS.map(function (item) {
+    const scheduled = item.days.indexOf(wd) !== -1;
+    const due = deadlineFor_(item, y, mo, d, wd);
+    let state = 'off', lastEvent = null;
+    if (scheduled) {
+      const start = cycleStartFor_(item, y, mo, d, wd);
+      const nd = nextDay_(y, mo, d);
+      const end = Math.min(etMs_(nd.y, nd.mo, nd.d, 0, 0), asOf);
+      let latest = null;
+      for (let k = rows.length - 1; k >= 0; k--) {
+        const r = rows[k];
+        if (Number(r[1]) !== 40) continue;
+        const id = parseInt(String(r[2]).replace(/\D/g, ''), 10);
+        if (id !== item.id) continue;
+        const ms = Date.parse(r[0]);
+        if (isNaN(ms) || ms < start || ms >= end) continue;
+        latest = { ms: ms, done: isDone_(r[3]) };
+        break;
+      }
+      if (latest) lastEvent = new Date(latest.ms).toISOString();
+      if (latest && latest.done) {
+        state = due == null ? 'done' : (latest.ms <= due ? 'ontime' : 'late');
+      } else if (due == null || asOf <= due + GRACE_MS) {
+        state = 'upcoming';
+      } else {
+        state = 'missed';
+      }
+    }
+    return {
+      id: item.id,
+      name: item.name,
+      scheduled: scheduled,
+      due: due == null ? null : new Date(due).toISOString(),
+      state: state,
+      lastEvent: lastEvent
+    };
+  });
+  return {
+    ok: true, api: API_VERSION, date: dateStr,
+    asOf: new Date(asOf).toISOString(), items: items
+  };
 }
 
 
